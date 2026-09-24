@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Choose a grade and complete a workbook lesson",
+    "sanity": true,
+    "viewport": "desktop",
+    "covers": [
+      "grade selection",
+      "subject and lesson navigation",
+      "interactive question answering",
+      "lesson completion",
+      "progress persistence backend"
+    ],
+    "description": "Verifies the primary learner flow from grade selection through answering a lesson question and saving progress.",
+    "steps": [
+      "Open the workbook home page",
+      "Select Grade 1",
+      "Select Mathematics and open Counting Objects",
+      "Select the correct answer for the first question",
+      "Check the answer and continue through the lesson",
+      "Open Progress"
+    ],
+    "expected": "The learner receives feedback, can complete the lesson, and the Progress view reflects the lesson activity."
+  },
+  {
+    "name": "Use revision mode on mobile",
+    "viewport": "mobile",
+    "covers": [
+      "revision navigation",
+      "mobile responsive layout",
+      "lesson launch from revision"
+    ],
+    "description": "Verifies revision is reachable and usable on a phone-sized viewport.",
+    "steps": [
+      "Open the mobile menu",
+      "Select Revision",
+      "Choose Grade 2 English",
+      "Open the first practice lesson"
+    ],
+    "expected": "The revision page and lesson open without horizontal layout problems, and the learner can select an answer."
+  },
+  {
+    "name": "View learner progress",
+    "viewport": "desktop",
+    "covers": [
+      "progress dashboard",
+      "learner profile name",
+      "progress metrics",
+      "backend progress retrieval"
+    ],
+    "description": "Verifies the progress dashboard loads and displays learner progress from the application state.",
+    "steps": [
+      "Open Progress",
+      "Enter a learner name",
+      "Refresh the page",
+      "Return to Progress"
+    ],
+    "expected": "The learner name remains available and the progress dashboard displays grade and subject progress."
+  },
+  {
+    "name": "Open adult learning overview",
+    "viewport": "desktop",
+    "covers": [
+      "parent teacher progress view",
+      "recommended revision indicator"
+    ],
+    "description": "Verifies the adult view shows learning progress by grade and a revision recommendation based on actual activity.",
+    "steps": ["Open Adult View", "Review the Grade 1 to Grade 3 rows"],
+    "expected": "The overview displays Mathematics and English progress for each grade and shows an appropriate next-step message."
+  },
+  {
+    "name": "Prevent submitting an unanswered question",
+    "viewport": "mobile",
+    "covers": ["required answer guardrail", "invalid-write prevention"],
+    "description": "Verifies the learner cannot submit a question before selecting an answer.",
+    "steps": [
+      "Open Grade 1 Mathematics",
+      "Open Counting Objects",
+      "Leave the options unselected"
+    ],
+    "expected": "The Check answer button remains disabled until an option is selected."
+  }
+]
