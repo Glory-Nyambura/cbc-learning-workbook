@@ -1,16 +1,14 @@
 # CBC Learning Workbook
 
-A learner-friendly digital workbook for Kenyan CBC learners in Grades 1-3. The app provides Mathematics and English lessons, practice questions, assessments, revision activities, learner profiles, progress tracking, points, daily growth projects, and adult progress views.
+A learner-friendly digital workbook for Kenyan CBC learners in Grades 1-3. The app provides Separate Learning Areas lessons, practice questions, assessments, revision activities, learner profiles, progress tracking, points, daily growth projects, and adult progress views.
 
 ## Features
 
 - Up to three learner profiles
-- Learner profile details including name, age, school, grade, favourite subject, avatar, and theme
-- Profile editing from Settings
 - Grade-focused home experience with optional access to other grades
-- Mathematics and English lessons for Grades 1-3
+- Separate Learning Areas lessons for Grades 1-3
 - Clickable curriculum strands that open related lessons
-- Separate Mathematics and English assessments
+- Separate Learning Areas assessments
 - Revision activities by grade and subject
 - Learner-scoped progress tracking
 - Points for completed lessons, assessments, and revision activities
@@ -19,9 +17,6 @@ A learner-friendly digital workbook for Kenyan CBC learners in Grades 1-3. The a
   - Build a house
   - Paint a picture
 - Learner leaderboard based on activity and points
-- Five visual themes
-- Collapsible desktop sidebar with Home, Revision, Assessments, and Settings
-- Responsive mobile navigation
 - Adult View with selectable learner profiles and grade-specific progress
 
 ## Tech Stack
