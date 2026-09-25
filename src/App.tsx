@@ -810,7 +810,7 @@ function App() {
           </span>
           <span>
             <strong>CBC Workbook</strong>
-            <small>Grade 1–3 • Kenya</small>
+            <small>Grade 1–3</small>
           </span>
         </button>
         <nav className="desktop-nav" aria-label="Main navigation">
@@ -1186,8 +1186,7 @@ function App() {
               <span className="eyebrow">MY LEARNING</span>
               <h1>Your progress</h1>
               <p>
-                Small steps add up. Keep practising and come back to topics you
-                want to strengthen.
+                Small steps add up. Keep practising.
               </p>
             </section>
             <div className="profile-card">
@@ -1391,7 +1390,7 @@ function App() {
       </main>
 
       <footer>
-        <span>© CBC Workbook</span>
+        <span>© 2026 CBC Workbook</span>
         <span>Grade 1–3 • Mathematics & English</span>
         <span>Learn with confidence.</span>
       </footer>
