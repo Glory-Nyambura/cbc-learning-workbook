@@ -1,9 +1,35 @@
 import { router, json, error, db } from '@appdeploy/sdk';
+import { curriculum, type Grade, type Subject } from '../src/data/curriculum';
 
 const table = 'learner_progress';
 
+const normalizeGrade = (value: string | number | undefined): Grade | null => {
+  const grade = Number(value);
+  return [1, 2, 3].includes(grade) ? (grade as Grade) : null;
+};
+
+const normalizeSubject = (value: string | undefined): Subject | null => {
+  return value === 'Mathematics' || value === 'English' ? value : null;
+};
+
 export const handler = router({
   'GET /api/_healthcheck': [async () => json({ message: 'Success' })],
+  'GET /api/curriculum': [
+    async ({ query }: any) => {
+      const grade = normalizeGrade(query?.grade ?? query?.gradeId);
+      const subject = normalizeSubject(query?.subject);
+
+      if (grade && subject) {
+        return json({ grade, subject, data: curriculum[grade][subject] });
+      }
+
+      if (grade) {
+        return json({ grade, data: curriculum[grade] });
+      }
+
+      return json({ data: curriculum });
+    },
+  ],
   'GET /api/progress': [
     async () => {
       const { items } = await db.list(table, { limit: 1 });

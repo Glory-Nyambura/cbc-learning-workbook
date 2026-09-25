@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from './lib/api';
+import { curriculumApi } from './data/curriculumApi';
+import { curriculum, gradeInfo, type Grade, type Subject } from './data/curriculum';
+import type { LessonDetail } from './data/lessons';
 import {
   BookOpen,
   Brain,
@@ -23,8 +26,6 @@ import {
   X,
 } from 'lucide-react';
 
-type Subject = 'Mathematics' | 'English';
-type Grade = 1 | 2 | 3;
 type View =
   | 'home'
   | 'subject'
@@ -34,29 +35,6 @@ type View =
   | 'assessment'
   | 'teacher'
   | 'settings';
-
-type Question = {
-  id: string;
-  text: string;
-  options: string[];
-  answer: string;
-  explanation: string;
-  hint: string;
-};
-
-type Lesson = {
-  id: string;
-  title: string;
-  subStrand: string;
-  description: string;
-  competency: string;
-  questions: Question[];
-};
-
-type SubjectData = {
-  strands: { name: string; subStrands: string[] }[];
-  lessons: Lesson[];
-};
 
 type Theme = 'meadow' | 'ocean' | 'sunset' | 'berry' | 'sky';
 type GrowthProject = 'tree' | 'house' | 'painting';
@@ -110,405 +88,6 @@ const loadProfiles = (): Profile[] => {
   }
 };
 
-const curriculum: Record<Grade, Record<Subject, SubjectData>> = {
-  1: {
-    Mathematics: {
-      strands: [
-        {
-          name: 'Numbers',
-          subStrands: [
-            'Counting and number recognition',
-            'Addition and subtraction',
-          ],
-        },
-        { name: 'Measurement', subStrands: ['Length and time'] },
-        { name: 'Geometry', subStrands: ['Shapes and position'] },
-      ],
-      lessons: [
-        {
-          id: 'g1m1',
-          title: 'Counting Objects',
-          subStrand: 'Counting and number recognition',
-          description:
-            'Count groups of familiar objects and connect quantities to numerals.',
-          competency: 'Critical Thinking',
-          questions: [
-            {
-              id: 'q1',
-              text: 'How many stars are there? ★ ★ ★ ★ ★',
-              options: ['4', '5', '6'],
-              answer: '5',
-              explanation: 'There are five stars.',
-              hint: 'Count each star once.',
-            },
-            {
-              id: 'q2',
-              text: 'Which number comes after 7?',
-              options: ['6', '8', '9'],
-              answer: '8',
-              explanation: 'After 7 comes 8.',
-              hint: 'Say the numbers from 6 to 9.',
-            },
-            {
-              id: 'q3',
-              text: 'Which group has more? 🍊🍊🍊 or 🍊🍊',
-              options: ['First group', 'Second group', 'They are equal'],
-              answer: 'First group',
-              explanation: 'Three oranges are more than two.',
-              hint: 'Count both groups.',
-            },
-          ],
-        },
-        {
-          id: 'g1m2',
-          title: 'Adding Small Numbers',
-          subStrand: 'Addition and subtraction',
-          description:
-            'Use pictures and number sentences to add small quantities.',
-          competency: 'Problem Solving',
-          questions: [
-            {
-              id: 'q4',
-              text: '3 + 2 = ?',
-              options: ['4', '5', '6'],
-              answer: '5',
-              explanation: 'Three plus two equals five.',
-              hint: 'Start at 3 and count two more.',
-            },
-            {
-              id: 'q5',
-              text: 'Akinyi has 4 pencils and gets 1 more. How many pencils does she have?',
-              options: ['3', '5', '6'],
-              answer: '5',
-              explanation: '4 + 1 = 5.',
-              hint: 'Add one to four.',
-            },
-          ],
-        },
-      ],
-    },
-    English: {
-      strands: [
-        {
-          name: 'Listening and Speaking',
-          subStrands: ['Greetings and conversations'],
-        },
-        {
-          name: 'Reading',
-          subStrands: ['Phonics and simple words', 'Comprehension'],
-        },
-        { name: 'Writing', subStrands: ['Handwriting and sentences'] },
-      ],
-      lessons: [
-        {
-          id: 'g1e1',
-          title: 'Letter Sounds',
-          subStrand: 'Phonics and simple words',
-          description:
-            'Recognise common letter sounds and connect them to simple words.',
-          competency: 'Communication',
-          questions: [
-            {
-              id: 'q6',
-              text: 'Which word begins with the /m/ sound?',
-              options: ['mat', 'sun', 'top'],
-              answer: 'mat',
-              explanation: 'Mat begins with the /m/ sound.',
-              hint: 'Say each word slowly.',
-            },
-            {
-              id: 'q7',
-              text: 'Which letter begins the word “cat”?',
-              options: ['c', 't', 'a'],
-              answer: 'c',
-              explanation: 'Cat starts with c.',
-              hint: 'Look at the first sound in cat.',
-            },
-          ],
-        },
-        {
-          id: 'g1e2',
-          title: 'Reading a Short Story',
-          subStrand: 'Comprehension',
-          description: 'Read a short passage and answer questions about it.',
-          competency: 'Critical Thinking',
-          questions: [
-            {
-              id: 'q8',
-              text: 'Amina has a red ball. What colour is the ball?',
-              options: ['Blue', 'Red', 'Green'],
-              answer: 'Red',
-              explanation: 'The story says Amina has a red ball.',
-              hint: 'Find the colour word.',
-            },
-            {
-              id: 'q9',
-              text: 'Choose the correct sentence.',
-              options: ['The boy run.', 'The boy runs.', 'The boy running.'],
-              answer: 'The boy runs.',
-              explanation: '“The boy runs” is the complete sentence.',
-              hint: 'Look for a sentence that sounds complete.',
-            },
-          ],
-        },
-      ],
-    },
-  },
-  2: {
-    Mathematics: {
-      strands: [
-        {
-          name: 'Numbers',
-          subStrands: ['Place value', 'Multiplication and division'],
-        },
-        { name: 'Measurement', subStrands: ['Money and time'] },
-        { name: 'Geometry and Data', subStrands: ['Shapes and simple data'] },
-      ],
-      lessons: [
-        {
-          id: 'g2m1',
-          title: 'Place Value',
-          subStrand: 'Place value',
-          description: 'Understand tens and ones in two-digit numbers.',
-          competency: 'Critical Thinking',
-          questions: [
-            {
-              id: 'q10',
-              text: 'In 47, what is the value of 4?',
-              options: ['4', '40', '7'],
-              answer: '40',
-              explanation: 'The 4 is in the tens place, so its value is 40.',
-              hint: 'The first digit in a two-digit number shows tens.',
-            },
-            {
-              id: 'q11',
-              text: 'Which number has 6 tens and 3 ones?',
-              options: ['36', '63', '69'],
-              answer: '63',
-              explanation: '6 tens = 60 and 3 ones = 3, making 63.',
-              hint: 'Build the number from tens and ones.',
-            },
-          ],
-        },
-        {
-          id: 'g2m2',
-          title: 'Multiplication as Groups',
-          subStrand: 'Multiplication and division',
-          description: 'Use equal groups to understand multiplication.',
-          competency: 'Problem Solving',
-          questions: [
-            {
-              id: 'q12',
-              text: 'There are 3 bags with 2 oranges each. How many oranges are there?',
-              options: ['5', '6', '8'],
-              answer: '6',
-              explanation: '3 groups of 2 make 6.',
-              hint: 'Think 2 + 2 + 2.',
-            },
-          ],
-        },
-      ],
-    },
-    English: {
-      strands: [
-        {
-          name: 'Reading',
-          subStrands: ['Fluency and comprehension', 'Vocabulary'],
-        },
-        { name: 'Grammar', subStrands: ['Nouns and verbs', 'Tenses'] },
-        { name: 'Writing', subStrands: ['Sentences and short paragraphs'] },
-      ],
-      lessons: [
-        {
-          id: 'g2e1',
-          title: 'Nouns and Verbs',
-          subStrand: 'Nouns and verbs',
-          description:
-            'Identify naming words and action words in simple sentences.',
-          competency: 'Communication',
-          questions: [
-            {
-              id: 'q13',
-              text: 'Which word is a verb in “The girl sings.”?',
-              options: ['girl', 'the', 'sings'],
-              answer: 'sings',
-              explanation: 'Sings tells us what the girl does.',
-              hint: 'Look for the action word.',
-            },
-            {
-              id: 'q14',
-              text: 'Which word is a noun?',
-              options: ['jump', 'teacher', 'quickly'],
-              answer: 'teacher',
-              explanation: 'Teacher names a person.',
-              hint: 'A noun can name a person, place, animal or thing.',
-            },
-          ],
-        },
-        {
-          id: 'g2e2',
-          title: 'Short Paragraphs',
-          subStrand: 'Sentences and short paragraphs',
-          description:
-            'Read and build connected sentences about familiar experiences.',
-          competency: 'Creativity',
-          questions: [
-            {
-              id: 'q15',
-              text: 'Which sentence starts with a capital letter?',
-              options: ['we went home.', 'We went home.', 'we Went home.'],
-              answer: 'We went home.',
-              explanation: 'A sentence starts with a capital letter.',
-              hint: 'Check the first letter.',
-            },
-          ],
-        },
-      ],
-    },
-  },
-  3: {
-    Mathematics: {
-      strands: [
-        {
-          name: 'Numbers',
-          subStrands: ['Place value and operations', 'Fractions'],
-        },
-        { name: 'Measurement', subStrands: ['Length, mass, time and money'] },
-        {
-          name: 'Geometry and Data',
-          subStrands: ['Shapes, patterns and data'],
-        },
-      ],
-      lessons: [
-        {
-          id: 'g3m1',
-          title: 'Multiplication Facts',
-          subStrand: 'Place value and operations',
-          description: 'Use multiplication facts to solve everyday problems.',
-          competency: 'Problem Solving',
-          questions: [
-            {
-              id: 'q16',
-              text: '6 × 4 = ?',
-              options: ['20', '24', '28'],
-              answer: '24',
-              explanation: 'Six groups of four make 24.',
-              hint: 'Think of 4 added six times.',
-            },
-            {
-              id: 'q17',
-              text: 'A class has 5 rows of 7 chairs. How many chairs are there?',
-              options: ['30', '35', '40'],
-              answer: '35',
-              explanation: '5 × 7 = 35.',
-              hint: 'Multiply the number of rows by chairs in each row.',
-            },
-          ],
-        },
-        {
-          id: 'g3m2',
-          title: 'Fractions of a Whole',
-          subStrand: 'Fractions',
-          description:
-            'Recognise and compare simple fractions using visual models.',
-          competency: 'Critical Thinking',
-          questions: [
-            {
-              id: 'q18',
-              text: 'Which fraction means one part out of four equal parts?',
-              options: ['1/2', '1/3', '1/4'],
-              answer: '1/4',
-              explanation: 'One out of four equal parts is one-quarter.',
-              hint: 'Look at the denominator.',
-            },
-          ],
-        },
-      ],
-    },
-    English: {
-      strands: [
-        { name: 'Reading', subStrands: ['Comprehension and vocabulary'] },
-        { name: 'Grammar', subStrands: ['Sentence structure and tenses'] },
-        { name: 'Writing', subStrands: ['Paragraphs and creative writing'] },
-      ],
-      lessons: [
-        {
-          id: 'g3e1',
-          title: 'Reading for Meaning',
-          subStrand: 'Comprehension and vocabulary',
-          description:
-            'Read a short passage and use evidence from it to answer questions.',
-          competency: 'Critical Thinking',
-          questions: [
-            {
-              id: 'q19',
-              text: 'If a story says “Kamau carried an umbrella because dark clouds appeared,” why did he carry it?',
-              options: [
-                'He wanted shade.',
-                'He expected rain.',
-                'He was going swimming.',
-              ],
-              answer: 'He expected rain.',
-              explanation: 'Dark clouds suggested that rain might come.',
-              hint: 'Connect the dark clouds with what an umbrella is used for.',
-            },
-            {
-              id: 'q20',
-              text: 'Choose the best word: “The children ___ football yesterday.”',
-              options: ['play', 'played', 'playing'],
-              answer: 'played',
-              explanation: '“Yesterday” signals past tense.',
-              hint: 'Look at the time word.',
-            },
-          ],
-        },
-        {
-          id: 'g3e2',
-          title: 'Building a Paragraph',
-          subStrand: 'Paragraphs and creative writing',
-          description:
-            'Choose clear sentences that can form a short paragraph.',
-          competency: 'Creativity',
-          questions: [
-            {
-              id: 'q21',
-              text: 'Which sentence is a good opening for a paragraph about school?',
-              options: [
-                'My school is a happy place to learn.',
-                'Because.',
-                'And then.',
-              ],
-              answer: 'My school is a happy place to learn.',
-              explanation: 'It introduces the topic clearly.',
-              hint: 'Choose a complete sentence that introduces school.',
-            },
-          ],
-        },
-      ],
-    },
-  },
-};
-
-const gradeInfo: Record<
-  Grade,
-  { label: string; colour: string; tagline: string }
-> = {
-  1: {
-    label: 'Grade 1',
-    colour: 'sun',
-    tagline: 'Discover, practise and build strong foundations.',
-  },
-  2: {
-    label: 'Grade 2',
-    colour: 'leaf',
-    tagline: 'Grow your skills and solve new challenges.',
-  },
-  3: {
-    label: 'Grade 3',
-    colour: 'sky',
-    tagline: 'Think deeper, read confidently and solve problems.',
-  },
-};
 
 function App() {
   const [view, setView] = useState<View>('home');
@@ -530,7 +109,7 @@ function App() {
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [grade, setGrade] = useState<Grade>(1);
   const [subject, setSubject] = useState<Subject>('Mathematics');
-  const [lesson, setLesson] = useState<Lesson | null>(null);
+  const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [answerIndex, setAnswerIndex] = useState(0);
@@ -546,9 +125,32 @@ function App() {
   const currentTheme = activeProfile?.theme || 'meadow';
   const selectedGrowth = growthProjects.find(project => project.id === (activeProfile?.growthProject || 'tree')) || growthProjects[0];
 
-  const data = curriculum[grade][subject];
-  const allLessons = useMemo(() => data.lessons, [data.lessons]);
-  const currentQuestion = lesson?.questions[answerIndex];
+  const [curriculumData, setCurriculumData] = useState(() => curriculumApi.getCurriculumForGradeSubject(grade, subject));
+  const [allLessons, setAllLessons] = useState<LessonDetail[]>(() => curriculumApi.getLessons(grade, subject));
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadCurriculum = async () => {
+      const nextData = curriculumApi.getCurriculumForGradeSubject(grade, subject);
+      const nextLessons = curriculumApi.getLessons(grade, subject);
+
+      if (!ignore) {
+        setCurriculumData(nextData);
+        setAllLessons(nextLessons);
+      }
+    };
+
+    loadCurriculum();
+
+    return () => {
+      ignore = true;
+    };
+  }, [grade, subject]);
+
+  const data = curriculumData;
+  const lessonQuestions = lesson ? curriculumApi.getQuestionsForLesson(grade, subject, lesson.id) : [];
+  const currentQuestion = lessonQuestions[answerIndex];
 
   useEffect(() => {
     if (activeProfile) {
@@ -616,7 +218,7 @@ function App() {
   };
 
   const openLesson = (
-    nextLesson: Lesson,
+    nextLesson: LessonDetail,
     kind: 'lesson' | 'assessment' | 'revision' = 'lesson'
   ) => {
     setLesson(nextLesson);
@@ -634,17 +236,17 @@ function App() {
     const nextScore = score + (correct ? 1 : 0);
     setScore(nextScore);
     setAnswered(true);
-    if (lesson) saveProgress(lesson.id, nextScore, lesson.questions.length);
+    if (lesson) saveProgress(lesson.id, nextScore, lessonQuestions.length);
   };
 
   const nextQuestion = () => {
     if (!lesson) return;
-    if (answerIndex < lesson.questions.length - 1) {
+    if (answerIndex < lessonQuestions.length - 1) {
       setAnswerIndex(answerIndex + 1);
       setSelected(null);
       setAnswered(false);
     } else {
-      setAnswerIndex(lesson.questions.length);
+      setAnswerIndex(lessonQuestions.length);
       setSelected(null);
       setAnswered(false);
       completeTask(taskKind);
@@ -1053,10 +655,14 @@ function App() {
                   {lesson.subStrand.toUpperCase()}
                 </span>
                 <h1>{lesson.title}</h1>
-                <p>{lesson.description}</p>
+                <p>{lesson.explanation}</p>
                 <span className="competency">
                   <Brain size={14} /> {lesson.competency}
                 </span>
+                <div className="lesson-meta">
+                  <small>Key inquiry: {lesson.keyInquiryQuestion}</small>
+                  <small>Value: {lesson.values[0] ?? 'Learning'}</small>
+                </div>
               </div>
               <div className="lesson-badge">
                 <BookOpen size={28} />
@@ -1069,11 +675,11 @@ function App() {
               <div className="learn-title">
                 <span>LET'S LEARN</span>
                 <small>
-                  Question {Math.min(answerIndex + 1, lesson.questions.length)}{' '}
-                  of {lesson.questions.length}
+                  Question {Math.min(answerIndex + 1, lessonQuestions.length)}{' '}
+                  of {lessonQuestions.length}
                 </small>
               </div>
-              {answerIndex < lesson.questions.length ? (
+              {answerIndex < lessonQuestions.length ? (
                 <>
                   <div className="question-box">
                     <CircleHelp size={20} />
@@ -1136,7 +742,7 @@ function App() {
                       </button>
                     ) : (
                       <button className="primary" onClick={nextQuestion}>
-                        {answerIndex < lesson.questions.length - 1
+                        {answerIndex < lessonQuestions.length - 1
                           ? 'Next question'
                           : 'Finish lesson'}{' '}
                         <ChevronRight size={18} />
@@ -1153,7 +759,7 @@ function App() {
                   <p>
                     You scored{' '}
                     <strong>
-                      {score}/{lesson.questions.length}
+                      {score}/{lessonQuestions.length}
                     </strong>
                     . Keep practising to improve your mastery.
                   </p>
@@ -1275,7 +881,7 @@ function App() {
                     onClick={() => {
                       setGrade(g);
                       setSubject(s);
-                      const l = curriculum[g][s].lessons[0];
+                      const l = curriculumApi.getLessons(g, s)[0];
                       openLesson(l, 'revision');
                     }}
                   >
@@ -1320,7 +926,7 @@ function App() {
                     onClick={() => {
                       setGrade(activeProfile.grade);
                       setSubject(s);
-                      openLesson(curriculum[activeProfile.grade][s].lessons[0], 'assessment');
+                      openLesson(curriculumApi.getLessons(activeProfile.grade, s)[0], 'assessment');
                     }}
                   >
                     Start {s} assessment <ChevronRight size={16} />
