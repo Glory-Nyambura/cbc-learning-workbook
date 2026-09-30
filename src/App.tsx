@@ -866,16 +866,16 @@ function App() {
             <section className="lesson-teaching" aria-label="Lesson explanation and example">
               <div className="lesson-key-idea">
                 <span className="eyebrow">WHAT WE ARE LEARNING</span>
-                <div className="speakable-sentence"><p>{lesson.learningObjective}</p>{readAloudButton(lesson.learningObjective)}</div>
+                <div className="speakable-sentence"><p>{lesson.learningObjective}</p>{readAloudButton(`What we are learning. ${lesson.learningObjective}`)}</div>
               </div>
               <div className="lesson-key-idea">
                 <span className="eyebrow">LET’S UNDERSTAND</span>
-                <div className="speakable-sentence"><p>{lesson.explanation}</p>{readAloudButton(lesson.explanation)}</div>
+                <div className="speakable-sentence"><p>{lesson.explanation}</p>{readAloudButton(`Let's understand. ${lesson.explanation}`)}</div>
               </div>
               {lesson.examples.map((example, index) => (
                 <div className="lesson-example" key={`${lesson.id}-example-${index}`}>
                   <span className="eyebrow">EXAMPLE {index + 1}</span>
-                  <div className="speakable-sentence"><p>{example}</p>{readAloudButton(example)}</div>
+                  <div className="speakable-sentence"><p>{example}</p>{readAloudButton(`Example ${index + 1}. ${example}`)}</div>
                   {lesson.exampleVisuals?.[index] && (
                     <figure className="example-visual" aria-label={lesson.exampleVisuals[index].caption}>
                       {lesson.exampleVisuals[index].groups.map((group, groupIndex) => (
@@ -898,7 +898,7 @@ function App() {
               ))}
               <div className="lesson-activity">
                 <span className="eyebrow">TRY IT TOGETHER</span>
-                <div className="speakable-sentence"><p>{lesson.guidedActivity}</p>{readAloudButton(lesson.guidedActivity)}</div>
+                <div className="speakable-sentence"><p>{lesson.guidedActivity}</p>{readAloudButton(`Try it together. ${lesson.guidedActivity}`)}</div>
               </div>
             </section>
             <div className="learn-panel">

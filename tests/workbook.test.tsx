@@ -170,12 +170,14 @@ describe('workbook improvements', () => {
 
     fireEvent.click(toggle);
     expect(screen.getByRole('button', { name: /read sentence aloud: today we will learn to put things with the same colour together/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Read sentence aloud: Example 2. A red ball and a red cup can go in the red group.' }));
+    expect((speak.mock.calls[0][0] as MockUtterance).text).toBe('Example 2. A red ball and a red cup can go in the red group.');
     fireEvent.click(screen.getByTitle('Settings'));
     fireEvent.change(screen.getByLabelText('Voice'), { target: { value: voice.voiceURI } });
     fireEvent.click(screen.getByRole('button', { name: 'Bright' }));
     fireEvent.click(screen.getByRole('button', { name: /play voice sample/i }));
 
-    const utterance = speak.mock.calls[0][0] as MockUtterance;
+    const utterance = speak.mock.calls[speak.mock.calls.length - 1][0] as MockUtterance;
     expect(utterance.text).toBe('Hello! Let us read and learn together.');
     expect(utterance.voice).toBe(voice);
     expect(utterance.pitch).toBe(1.12);
