@@ -255,16 +255,16 @@ button {
   color: #173f35;
 }
 .sidebar-divider { display: block; height: 1px; margin: 18px 12px; background: #e2e9e3; }
-main { margin-left: 218px; transition: margin-left .2s ease; }
+main { min-width: 0; margin-left: 218px; transition: margin-left .2s ease; }
 .app-sidebar.collapsed ~ main { margin-left: 68px; }
 .page {
-  width: min(1180px, 90vw);
+  width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
   padding: 48px 0 70px;
   flex: 1;
 }
 .narrow {
-  width: min(1040px, 90vw);
+  width: min(1040px, calc(100% - 48px));
 }
 .hero {
   min-height: 450px;
@@ -1193,7 +1193,7 @@ main { margin-left: 218px; transition: margin-left .2s ease; }
   font-size: 11px;
 }
 footer {
-  width: min(1180px, 90vw);
+  width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
   padding: 22px 0 28px;
   border-top: 1px solid #e1e7e2;
@@ -1203,19 +1203,29 @@ footer {
   justify-content: space-between;
 }
 
+@media (max-width: 1100px) {
+  .hero {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(250px, 0.85fr);
+    gap: 24px;
+  }
+  .lesson-layout {
+    grid-template-columns: minmax(200px, 0.7fr) minmax(0, 1.3fr);
+    gap: 24px;
+  }
+  .grade-grid,
+  .progress-grid,
+  .assessment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 820px) {
   .desktop-nav {
     display: none;
   }
   .app-sidebar {
-    display: block;
-    transform: translateX(-100%);
-    width: min(260px, 82vw);
-    transition: transform .2s ease;
-    box-shadow: 12px 0 30px rgba(31, 62, 50, .08);
-  }
-  .app-sidebar.mobile-open {
-    transform: translateX(0);
+    display: none;
   }
   main {
     margin-left: 0;
@@ -1238,9 +1248,11 @@ footer {
   }
   .grade-grid,
   .progress-grid,
-  .assessment-grid,
+  .assessment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .progress-highlights {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .section-head,
   .subject-strip,
@@ -1259,6 +1271,7 @@ footer {
   .settings-sidebar button { justify-content: center; }
   .subject-actions button {
     width: 100%;
+    min-width: 0;
   }
   .lesson-layout {
     grid-template-columns: 1fr;
@@ -1289,6 +1302,7 @@ footer {
   }
   .adult-table {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .table-row {
     min-width: 620px;
@@ -1299,14 +1313,28 @@ footer {
   }
 }
 @media (max-width: 500px) {
+  .topbar { height: 64px; padding: 0 16px; }
+  .brand { gap: 8px; }
+  .brand-mark { width: 36px; height: 36px; }
+  .brand strong { font-size: 14px; }
+  .mobile-nav { top: 64px; padding: 10px 16px; }
+  .page,
+  .narrow,
+  footer { width: calc(100% - 32px); }
   .login-shell { display: block; }
   .login-art { min-height: 260px; padding: 38px 8vw; }
   .login-art h1 { font-size: 43px; }
   .login-tree { display: none; }
   .login-panel { padding: 35px 8vw 50px; max-height: none; }
   .form-grid { grid-template-columns: 1fr; }
+  .grade-grid,
+  .progress-grid,
+  .assessment-grid,
+  .progress-highlights { grid-template-columns: 1fr; }
   .growth-panel { align-items: flex-start; }
+  .growth-panel { padding: 18px; gap: 8px; }
   .growth-tree { min-width: 90px; }
+  .other-grade-actions { grid-template-columns: minmax(0, 1fr); }
   .leader-row { grid-template-columns: 20px 30px 1fr 48px 45px; padding-left: 12px; padding-right: 12px; }
   .page {
     padding-top: 30px;
@@ -1314,6 +1342,17 @@ footer {
   .hero h1 {
     font-size: 52px;
   }
+  .hero-actions,
+  .completion-actions { flex-wrap: wrap; }
+  .hero-actions > button,
+  .completion-actions > button { flex: 1 1 150px; }
+  .subject-heading,
+  .lesson-hero { gap: 16px; }
+  .lesson-card { gap: 10px; padding: 14px; }
+  .lesson-badge { width: 72px; height: 72px; }
+  .section-head h2,
+  .subject-strip h2 { font-size: 23px; }
+  .overall-pill { flex-wrap: wrap; }
   .hero-art {
     min-height: 240px;
   }
@@ -1328,4 +1367,8 @@ footer {
   .learn-panel {
     padding: 18px;
   }
+  .question-box { padding: 18px; }
+  .question-box h2 { font-size: 20px; }
+  .settings-block { padding: 16px; }
+  .table-row { min-width: 560px; }
 }
