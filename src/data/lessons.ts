@@ -1,6 +1,10 @@
-import { curriculum, type Grade, type Lesson, type Subject } from './curriculum';
+import type { Grade, Lesson, Subject } from './curriculum';
+import { curriculum } from './syllabusCurriculum';
 
 export type LessonDetail = Lesson & {
+  introduction: string;
+  learningObjective: string;
+  guidedActivity: string;
   learningOutcome: string;
   learningExperiences: string[];
   keyInquiryQuestions: string[];
@@ -10,7 +14,6 @@ export type LessonDetail = Lesson & {
   assessmentConsiderations: string[];
   explanation: string;
   examples: string[];
-  guidedActivity: string;
   independentActivity: string;
   recap: string;
 };
@@ -27,9 +30,11 @@ export function buildLessonDetail(grade: Grade, subject: Subject, lesson: Lesson
     coreCompetencies: lesson.coreCompetencies,
     values: lesson.values,
     assessmentConsiderations: lesson.assessmentConsiderations,
-    explanation: `In this lesson, we focus on ${lesson.title.toLowerCase()}. ${lesson.description}`,
-    examples: lesson.questions.map(question => question.text),
-    guidedActivity: `Work with a partner to discuss: ${keyInquiryQuestion}`,
+    explanation: lesson.keyIdea ?? lesson.learningOutcome,
+    examples: lesson.examples ?? [],
+    introduction: lesson.introduction ?? `Today we will learn about ${lesson.title.toLowerCase()}.`,
+    learningObjective: lesson.learningObjective ?? `You will learn: ${lesson.learningOutcome}`,
+    guidedActivity: lesson.guidedActivity ?? `Try the idea: ${lesson.description}`,
     independentActivity: `Use the practice questions to show your understanding and explain your thinking using ${lesson.coreCompetencies[0] ?? 'the lesson skill'}.`,
     recap: `Today we practised ${lesson.title}. The key idea was: ${lesson.learningOutcome}`,
   };

@@ -1,5 +1,6 @@
 import { router, json, error, db } from '@appdeploy/sdk';
-import { curriculum, type Grade, type Subject } from '../src/data/curriculum';
+import { type Grade, type Subject } from '../src/data/curriculum';
+import { curriculum } from '../src/data/syllabusCurriculum';
 
 const table = 'learner_progress';
 
@@ -31,29 +32,35 @@ export const handler = router({
     },
   ],
   'GET /api/progress': [
-    async () => {
-      const { items } = await db.list(table, { limit: 1 });
-      return json({ progress: items[0]?.progress || {} });
+    async ({ query }: any) => {
+      const profileId = typeof query?.profileId === 'string' ? query.profileId.trim() : '';
+      if (!profileId) return error('A learner profile ID is required.', 400);
+      const { items } = await db.list(table, { limit: 100 });
+      const record = items.find((item: any) => item.profileId === profileId);
+      return json({ progress: record?.progress || {} });
     },
   ],
   'POST /api/progress': [
     async ({ body }) => {
-      const payload = body as { progress?: Record<string, number> };
+      const payload = body as { profileId?: string; progress?: Record<string, number> };
+      const profileId = payload?.profileId?.trim();
+      if (!profileId) return error('A learner profile ID is required.', 400);
       if (!payload?.progress || typeof payload.progress !== 'object') {
         return error('Progress must be an object.', 400);
       }
-      const { items } = await db.list(table, { limit: 1 });
-      if (!items.length) {
+      const { items } = await db.list(table, { limit: 100 });
+      const current = items.find((item: any) => item.profileId === profileId);
+      if (!current) {
         const [id] = await db.add(table, [
-          { progress: payload.progress, updatedAt: new Date().toISOString() },
+          { profileId, progress: payload.progress, updatedAt: new Date().toISOString() },
         ]);
         if (!id) return error('Could not save progress.', 500);
       } else {
-        const current = items[0];
         const ok = await db.update(table, [
           {
             id: current.id,
             record: {
+              profileId,
               progress: payload.progress,
               updatedAt: new Date().toISOString(),
             },
@@ -61,7 +68,7 @@ export const handler = router({
         ]);
         if (!ok[0]) return error('Could not save progress.', 500);
       }
-      return json({ saved: true, progress: payload.progress });
+      return json({ saved: true, profileId, progress: payload.progress });
     },
   ],
 });

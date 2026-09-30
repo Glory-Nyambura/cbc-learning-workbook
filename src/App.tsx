@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from './lib/api';
 import { curriculumApi } from './data/curriculumApi';
-import { curriculum, gradeInfo, type Grade, type Subject } from './data/curriculum';
+import { getPracticeQuestionsForAttempt } from './data/questionBank';
+import { gradeInfo, type Grade, type Subject } from './data/curriculum';
+import { curriculum } from './data/syllabusCurriculum';
+import type { GeneratedQuestion } from './data/questionBank';
 import type { LessonDetail } from './data/lessons';
 import {
   BookOpen,
@@ -109,17 +112,23 @@ function App() {
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [grade, setGrade] = useState<Grade>(1);
   const [subject, setSubject] = useState<Subject>('Mathematics');
+  const [selectedStrand, setSelectedStrand] = useState<string | null>(null);
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
+  const [sessionQuestions, setSessionQuestions] = useState<GeneratedQuestion[]>([]);
+  const [attemptQuestions, setAttemptQuestions] = useState<GeneratedQuestion[]>([]);
+  const [previousAttemptQuestionIds, setPreviousAttemptQuestionIds] = useState<string[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [answerIndex, setAnswerIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [score, setScore] = useState(0);
-  const [answered, setAnswered] = useState(false);
   const [taskKind, setTaskKind] = useState<'lesson' | 'assessment' | 'revision'>('lesson');
   const [adultProfileId, setAdultProfileId] = useState('');
   const [progress, setProgress] = useState<Record<string, number>>({});
   const [saved, setSaved] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'local' | 'syncing' | 'synced'>('local');
   const activeProfile = profiles.find(profile => profile.id === activeProfileId);
   const today = new Date().toISOString().slice(0, 10);
   const currentTheme = activeProfile?.theme || 'meadow';
@@ -138,6 +147,7 @@ function App() {
       if (!ignore) {
         setCurriculumData(nextData);
         setAllLessons(nextLessons);
+        setSelectedStrand(null);
       }
     };
 
@@ -149,15 +159,45 @@ function App() {
   }, [grade, subject]);
 
   const data = curriculumData;
-  const lessonQuestions = lesson ? curriculumApi.getQuestionsForLesson(grade, subject, lesson.id) : [];
+  const visibleLessons = selectedStrand
+    ? allLessons.filter(item => item.strand === selectedStrand)
+    : allLessons;
+  const lessonQuestions = attemptQuestions;
   const currentQuestion = lessonQuestions[answerIndex];
 
   useEffect(() => {
-    if (activeProfile) {
-      setProgress(activeProfile.progress);
-      setGrade(activeProfile.grade);
-      setSubject(activeProfile.favoriteSubject);
-    }
+    let ignore = false;
+    if (!activeProfile) return () => { ignore = true; };
+
+    setProgress(activeProfile.progress ?? {});
+    setGrade(activeProfile.grade);
+    setSubject(activeProfile.favoriteSubject);
+
+    const loadProfileProgress = async () => {
+      try {
+        const response = await api.get(`/api/progress?profileId=${encodeURIComponent(activeProfile.id)}`) as {
+          progress?: Record<string, number>;
+        };
+        if (ignore) return;
+        const localProgress = activeProfile.progress ?? {};
+        const remoteProgress = response.progress ?? {};
+        const mergedProgress = Object.fromEntries(
+          [...new Set([...Object.keys(localProgress), ...Object.keys(remoteProgress)])]
+            .map(id => [id, Math.max(localProgress[id] ?? 0, remoteProgress[id] ?? 0)])
+        );
+        setProgress(mergedProgress);
+        const nextProfiles = loadProfiles().map(profile =>
+          profile.id === activeProfile.id ? { ...profile, progress: mergedProgress } : profile
+        );
+        persistProfiles(nextProfiles);
+        setSyncStatus('synced');
+      } catch {
+        if (!ignore) setSyncStatus('local');
+      }
+    };
+
+    loadProfileProgress();
+    return () => { ignore = true; };
   }, [activeProfileId]);
 
   const persistProfiles = (nextProfiles: Profile[]) => {
@@ -196,13 +236,21 @@ function App() {
     setSaved(true);
     setTimeout(() => setSaved(false), 1800);
     try {
-      await api.post('/api/progress', { progress: next });
-    } catch {}
+      if (activeProfile) {
+        setSyncStatus('syncing');
+        await api.post('/api/progress', { profileId: activeProfile.id, progress: next });
+        setSyncStatus('synced');
+      }
+    } catch {
+      setSyncStatus('local');
+    }
   };
 
   const completeTask = (kind: 'lesson' | 'assessment' | 'revision') => {
     if (!activeProfile || !lesson) return;
-    const taskId = `${kind}:${lesson.id}`;
+    const taskId = kind === 'assessment'
+      ? `${kind}:${grade}:${subject}`
+      : `${kind}:${lesson.id}`;
     if (activeProfile.completedTasks.includes(taskId)) return;
     const nextProfiles = profiles.map(profile =>
       profile.id === activeProfile.id
@@ -219,38 +267,59 @@ function App() {
 
   const openLesson = (
     nextLesson: LessonDetail,
-    kind: 'lesson' | 'assessment' | 'revision' = 'lesson'
+    kind: 'lesson' | 'assessment' | 'revision' = 'lesson',
+    questions = curriculumApi.getQuestionsForLesson(grade, subject, nextLesson.id)
   ) => {
     setLesson(nextLesson);
+    setSessionQuestions(questions);
     setTaskKind(kind);
     setAnswerIndex(0);
     setSelected(null);
     setScore(0);
-    setAnswered(false);
+    setAnswers({});
+    setPreviousAttemptQuestionIds([]);
+    setReviewOpen(false);
+    setAttemptQuestions(getPracticeQuestionsForAttempt(questions));
     setView('lesson');
   };
 
   const submitAnswer = () => {
-    if (!currentQuestion || !selected || answered) return;
-    const correct = selected === currentQuestion.answer;
-    const nextScore = score + (correct ? 1 : 0);
-    setScore(nextScore);
-    setAnswered(true);
-    if (lesson) saveProgress(lesson.id, nextScore, lessonQuestions.length);
-  };
+    if (!currentQuestion || !selected) return;
+    const nextAnswers = { ...answers, [currentQuestion.id]: selected };
+    setAnswers(nextAnswers);
 
-  const nextQuestion = () => {
-    if (!lesson) return;
     if (answerIndex < lessonQuestions.length - 1) {
       setAnswerIndex(answerIndex + 1);
       setSelected(null);
-      setAnswered(false);
-    } else {
-      setAnswerIndex(lessonQuestions.length);
-      setSelected(null);
-      setAnswered(false);
-      completeTask(taskKind);
+      return;
     }
+
+    const finalScore = lessonQuestions.reduce(
+      (total, question) => total + (nextAnswers[question.id] === question.answer ? 1 : 0),
+      0
+    );
+    setScore(finalScore);
+    setAnswerIndex(lessonQuestions.length);
+    setSelected(null);
+    setReviewOpen(false);
+    if (lesson) {
+      const progressId = taskKind === 'assessment'
+        ? `assessment:${grade}:${subject}`
+        : lesson.id;
+      void saveProgress(progressId, finalScore, lessonQuestions.length);
+    }
+    completeTask(taskKind);
+  };
+
+  const retryLesson = () => {
+    const usedQuestionIds = [...previousAttemptQuestionIds, ...attemptQuestions.map(question => question.id)];
+    setPreviousAttemptQuestionIds(usedQuestionIds);
+    setAttemptQuestions(getPracticeQuestionsForAttempt(sessionQuestions, usedQuestionIds));
+    setAnswerIndex(0);
+    setSelected(null);
+    setAnswers({});
+    setScore(0);
+    setReviewOpen(false);
   };
 
   const startGrade = (g: Grade) => {
@@ -261,6 +330,19 @@ function App() {
   const startSubject = (s: Subject) => {
     setSubject(s);
     setView('subject');
+  };
+
+  const startAssessment = (s: Subject) => {
+    const assessmentGrade = activeProfile?.grade ?? grade;
+    const questions = curriculumApi.getAssessmentQuestions(assessmentGrade, s);
+    const firstQuestion = questions[0];
+    const firstLesson = firstQuestion
+      ? curriculumApi.getLesson(assessmentGrade, s, firstQuestion.lessonId)
+      : undefined;
+    if (!firstLesson || !questions.length) return;
+    setGrade(assessmentGrade);
+    setSubject(s);
+    openLesson(firstLesson, 'assessment', questions);
   };
 
   const completedFor = (g: Grade, s: Subject) => {
@@ -354,7 +436,7 @@ function App() {
     return (
       <div className="login-shell">
         <div className="login-art">
-          <span className="eyebrow">CBC WORKBOOK</span>
+          <span className="eyebrow">CBE WORKBOOK</span>
           <h1>Choose your<br /><span>learning space.</span></h1>
           <p>Every visit helps your ideas take root.</p>
           <div className="login-tree"><TreePine size={120} strokeWidth={1.2} /></div>
@@ -411,7 +493,7 @@ function App() {
             <GraduationCap size={22} />
           </span>
           <span>
-            <strong>CBC Workbook</strong>
+            <strong>CBE Workbook</strong>
             <small>Grade 1–3</small>
           </span>
         </button>
@@ -457,6 +539,9 @@ function App() {
             ['home', 'Home'],
             ['revision', 'Revision'],
             ['assessment', 'Assessments'],
+            ['progress', 'Progress'],
+            ['teacher', 'Adult view'],
+            ['settings', 'Settings'],
           ].map(([v, label]) => (
             <button key={v} onClick={() => nav(v as View)}>
               {label}
@@ -470,6 +555,8 @@ function App() {
         <button title="Home" className={view === 'home' ? 'active' : ''} onClick={() => nav('home')}><Home size={17} /><span>Home</span></button>
         <button title="Revision" className={view === 'revision' ? 'active' : ''} onClick={() => nav('revision')}><RotateCcw size={17} /><span>Revision</span></button>
         <button title="Assessments" className={view === 'assessment' ? 'active' : ''} onClick={() => nav('assessment')}><CheckCircle2 size={17} /><span>Assessments</span></button>
+        <button title="Progress" className={view === 'progress' ? 'active' : ''} onClick={() => nav('progress')}><Star size={17} /><span>Progress</span></button>
+        <button title="Adult view" className={view === 'teacher' ? 'active' : ''} onClick={() => nav('teacher')}><Users size={17} /><span>Adult view</span></button>
         <span className="sidebar-divider" />
         <button title="Settings" className={view === 'settings' ? 'active' : ''} onClick={() => nav('settings')}><Settings size={17} /><span>Settings</span></button>
       </aside>
@@ -479,7 +566,7 @@ function App() {
           <div className="page">
             <section className="hero">
               <div>
-                <span className="eyebrow">KENYAN CBC • DIGITAL WORKBOOK</span>
+                <span className="eyebrow">KENYAN CBE • DIGITAL WORKBOOK</span>
                 <h1>
                   Learn. Practise.
                   <br />
@@ -588,7 +675,7 @@ function App() {
                   {gradeInfo[grade].label.toUpperCase()}
                 </span>
                 <h1>{subject}</h1>
-                <p>Choose a lesson and learn at your own pace.</p>
+                <p>Pick a lesson. Learn one step at a time.</p>
               </div>
               <div className="subject-stat">
                 <span>{completedFor(grade, subject)}%</span>
@@ -597,9 +684,14 @@ function App() {
             </section>
             <div className="lesson-layout">
               <aside className="strand-list">
-                <span className="aside-label">CURRICULUM MAP</span>
+                <span className="aside-label">PICK A TOPIC</span>
                 {data.strands.map((strand, i) => (
-                  <button className="strand" key={strand.name} onClick={() => openLesson(data.lessons.find(item => item.subStrand === strand.subStrands[0]) || data.lessons[0])}>
+                  <button
+                    className={`strand ${selectedStrand === strand.name ? 'active' : ''}`}
+                    key={strand.name}
+                    aria-pressed={selectedStrand === strand.name}
+                    onClick={() => setSelectedStrand(strand.name)}
+                  >
                     <span className="strand-num">0{i + 1}</span>
                     <div>
                       <strong>{strand.name}</strong>
@@ -611,8 +703,11 @@ function App() {
                 ))}
               </aside>
               <section className="lesson-list">
-                <span className="aside-label">LESSONS</span>
-                {allLessons.map((l, i) => {
+                <span className="aside-label">
+                  {selectedStrand ? `${selectedStrand.toUpperCase()} LESSONS` : 'LESSONS'}
+                  {' · '}{visibleLessons.length}
+                </span>
+                {visibleLessons.map((l, i) => {
                   const pct = progress[l.id] || 0;
                   return (
                     <button
@@ -651,18 +746,9 @@ function App() {
             </div>
             <section className="lesson-hero">
               <div>
-                <span className="eyebrow">
-                  {lesson.subStrand.toUpperCase()}
-                </span>
+                <span className="eyebrow">{gradeInfo[grade].label.toUpperCase()} · {subject.toUpperCase()}</span>
                 <h1>{lesson.title}</h1>
-                <p>{lesson.explanation}</p>
-                <span className="competency">
-                  <Brain size={14} /> {lesson.competency}
-                </span>
-                <div className="lesson-meta">
-                  <small>Key inquiry: {lesson.keyInquiryQuestion}</small>
-                  <small>Value: {lesson.values[0] ?? 'Learning'}</small>
-                </div>
+                <p>{lesson.introduction}</p>
               </div>
               <div className="lesson-badge">
                 <BookOpen size={28} />
@@ -671,9 +757,47 @@ function App() {
                 </span>
               </div>
             </section>
+            <section className="lesson-teaching" aria-label="Lesson explanation and example">
+              <div className="lesson-key-idea">
+                <span className="eyebrow">WHAT WE ARE LEARNING</span>
+                <p>{lesson.learningObjective}</p>
+              </div>
+              <div className="lesson-key-idea">
+                <span className="eyebrow">LET’S UNDERSTAND</span>
+                <p>{lesson.explanation}</p>
+              </div>
+              {lesson.examples.map((example, index) => (
+                <div className="lesson-example" key={`${lesson.id}-example-${index}`}>
+                  <span className="eyebrow">EXAMPLE {index + 1}</span>
+                  <p>{example}</p>
+                  {lesson.exampleVisuals?.[index] && (
+                    <figure className="example-visual" aria-label={lesson.exampleVisuals[index].caption}>
+                      {lesson.exampleVisuals[index].groups.map((group, groupIndex) => (
+                        <div className="example-visual-group" key={`${lesson.id}-${index}-group-${groupIndex}`}>
+                          <strong>{group.label}</strong>
+                          <div className="example-visual-items">
+                            {group.items.map((item, itemIndex) => (
+                              <span className="example-visual-item" data-length={item.length} key={`${lesson.id}-${index}-${groupIndex}-${itemIndex}`}>
+                                <span aria-hidden="true">{item.symbol}</span>
+                                <small>{item.label}</small>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      <figcaption>{lesson.exampleVisuals[index].caption}</figcaption>
+                    </figure>
+                  )}
+                </div>
+              ))}
+              <div className="lesson-activity">
+                <span className="eyebrow">TRY IT TOGETHER</span>
+                <p>{lesson.guidedActivity}</p>
+              </div>
+            </section>
             <div className="learn-panel">
               <div className="learn-title">
-                <span>LET'S LEARN</span>
+                <span>{taskKind === 'assessment' ? 'ASSESSMENT' : taskKind === 'revision' ? 'REVISION' : "LET'S LEARN"}</span>
                 <small>
                   Question {Math.min(answerIndex + 1, lessonQuestions.length)}{' '}
                   of {lessonQuestions.length}
@@ -690,41 +814,12 @@ function App() {
                       <button
                         key={option}
                         className={selected === option ? 'selected' : ''}
-                        disabled={answered}
                         onClick={() => setSelected(option)}
                       >
                         {option}
-                        <span>
-                          {selected === option && answered
-                            ? option === currentQuestion.answer
-                              ? '✓'
-                              : '×'
-                            : ''}
-                        </span>
                       </button>
                     ))}
                   </div>
-                  {answered && (
-                    <div
-                      className={
-                        'feedback ' +
-                        (selected === currentQuestion?.answer
-                          ? 'correct'
-                          : 'try')
-                      }
-                    >
-                      <strong>
-                        {selected === currentQuestion?.answer
-                          ? '🎉 Correct!'
-                          : 'Not quite yet.'}
-                      </strong>
-                      <span>
-                        {selected === currentQuestion?.answer
-                          ? currentQuestion.explanation
-                          : currentQuestion.hint}
-                      </span>
-                    </div>
-                  )}
                   <div className="lesson-controls">
                     <button
                       className="hint-btn"
@@ -732,50 +827,67 @@ function App() {
                     >
                       <CircleHelp size={16} /> Need a hint?
                     </button>
-                    {!answered ? (
-                      <button
-                        className="primary"
-                        disabled={!selected}
-                        onClick={submitAnswer}
-                      >
-                        Check answer
-                      </button>
-                    ) : (
-                      <button className="primary" onClick={nextQuestion}>
-                        {answerIndex < lessonQuestions.length - 1
-                          ? 'Next question'
-                          : 'Finish lesson'}{' '}
-                        <ChevronRight size={18} />
-                      </button>
-                    )}
+                    <button
+                      className="primary"
+                      disabled={!selected}
+                      onClick={submitAnswer}
+                    >
+                      {answerIndex < lessonQuestions.length - 1 ? 'Next question' : 'Submit answers'}
+                      <ChevronRight size={18} />
+                    </button>
                   </div>
                 </>
               ) : (
-                <div className="completion">
+                <div className="completion" aria-live="polite">
                   <div className="trophy">
                     <Trophy size={34} />
                   </div>
-                  <h2>Lesson complete!</h2>
+                  <h2>Your Score</h2>
                   <p>
-                    You scored{' '}
-                    <strong>
-                      {score}/{lessonQuestions.length}
-                    </strong>
-                    . Keep practising to improve your mastery.
+                    <strong>{score}/{lessonQuestions.length}</strong>
                   </p>
+                  <p>
+                    {score === lessonQuestions.length
+                      ? `Great work! You got all ${lessonQuestions.length} questions correct.`
+                      : score >= Math.ceil(lessonQuestions.length / 2)
+                        ? `Good try! You got ${score} questions correct.`
+                        : `Keep practising! You got ${score} questions correct.`}
+                  </p>
+                  {reviewOpen && (
+                    <div className="answer-review">
+                      <h3>Let’s check your answers</h3>
+                      {lessonQuestions.filter(question => answers[question.id] !== question.answer).length === 0 ? (
+                        <p>You got every question right!</p>
+                      ) : lessonQuestions.filter(question => answers[question.id] !== question.answer).map(question => (
+                        <article className="answer-review-item" key={question.id}>
+                          <strong>Question {lessonQuestions.indexOf(question) + 1}</strong>
+                          <p>{question.text}</p>
+                          <p><b>Your answer:</b> {answers[question.id] ?? 'No answer'}</p>
+                          <p><b>Correct answer:</b> {question.answer}</p>
+                          <p><b>Why?</b> {question.explanation}</p>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                   <div className="completion-actions">
                     <button
                       className="secondary"
-                      onClick={() => openLesson(lesson, taskKind)}
+                      onClick={() => setReviewOpen(!reviewOpen)}
                     >
-                      Try again
+                      {reviewOpen ? 'Hide My Answers' : 'Review My Answers'}
                     </button>
-                    <button
-                      className="primary"
-                      onClick={openNextLesson}
-                    >
-                      {nextLesson ? 'Next lesson' : 'Back to lessons'} <ChevronRight size={18} />
+                    <button className="secondary" onClick={retryLesson}>
+                      Try Again
                     </button>
+                    {taskKind === 'assessment' ? (
+                      <button className="primary" onClick={() => nav('assessment')}>
+                        Back to assessments <ChevronRight size={18} />
+                      </button>
+                    ) : (
+                      <button className="primary" onClick={openNextLesson}>
+                        {nextLesson ? 'Next lesson' : 'Back to lessons'} <ChevronRight size={18} />
+                      </button>
+                    )}
                     <button className="secondary" onClick={() => setView('home')}>
                       Return home <Home size={17} />
                     </button>
@@ -855,8 +967,9 @@ function App() {
               ))}
             </div>
             {saved && (
-              <div className="saved-toast">
-                <CheckCircle2 size={16} /> Progress saved
+              <div className="saved-toast" role="status">
+                <CheckCircle2 size={16} />
+                {syncStatus === 'syncing' ? 'Progress saved here; syncing…' : syncStatus === 'synced' ? 'Progress saved and synced' : 'Progress saved on this device'}
               </div>
             )}
           </div>
@@ -918,18 +1031,16 @@ function App() {
                     <span>{s}</span>
                     <CheckCircle2 />
                   </div>
-                  <h3>{s} assessment</h3>
+                  <h3>{s} practice check</h3>
                   <p>
                     A focused check using {gradeInfo[activeProfile.grade].label} {s} lessons.
                   </p>
                   <button
                     onClick={() => {
-                      setGrade(activeProfile.grade);
-                      setSubject(s);
-                      openLesson(curriculumApi.getLessons(activeProfile.grade, s)[0], 'assessment');
+                      startAssessment(s);
                     }}
                   >
-                    Start {s} assessment <ChevronRight size={16} />
+                    Start 10-question assessment <ChevronRight size={16} />
                   </button>
                 </div>
               ))}
@@ -996,7 +1107,7 @@ function App() {
       </main>
 
       <footer>
-        <span>© 2026 CBC Workbook</span>
+        <span>© 2026 CBE Workbook</span>
         <span>Grade 1–3 • Mathematics & English</span>
         <span>Learn with confidence.</span>
       </footer>

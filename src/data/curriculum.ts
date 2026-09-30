@@ -15,18 +15,33 @@ export type Question = {
   context?: string;
 };
 
+export type LessonExampleVisual = {
+  caption: string;
+  groups: {
+    label: string;
+    items: { symbol: string; label: string; length?: 'short' | 'long' }[];
+  }[];
+};
+
 export type Lesson = {
   id: string;
   title: string;
+  strand?: string;
   subStrand: string;
   description: string;
   competency: string;
+  introduction?: string;
+  learningObjective?: string;
+  guidedActivity?: string;
   learningOutcome: string;
   learningExperiences: string[];
   keyInquiryQuestions: string[];
   coreCompetencies: string[];
   values: string[];
   assessmentConsiderations: string[];
+  keyIdea?: string;
+  examples?: string[];
+  exampleVisuals?: LessonExampleVisual[];
   questions: Question[];
 };
 

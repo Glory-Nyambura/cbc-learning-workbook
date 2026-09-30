@@ -1,6 +1,6 @@
 [
   {
-    "name": "Choose a grade and complete a workbook lesson",
+    "name": "Complete a workbook lesson and view progress",
     "sanity": true,
     "viewport": "desktop",
     "covers": [
@@ -13,13 +13,14 @@
     "description": "Verifies the primary learner flow from grade selection through answering a lesson question and saving progress.",
     "steps": [
       "Open the workbook home page",
-      "Select Grade 1",
-      "Select Mathematics and open Counting Objects",
-      "Select the correct answer for the first question",
-      "Check the answer and continue through the lesson",
+      "Continue learning from the learner's home page",
+      "Open the first Mathematics lesson",
+      "Answer Questions 1 to 4 and confirm no result is shown",
+      "Answer Question 5 and submit the set",
+      "Review any incorrect answers",
       "Open Progress"
     ],
-    "expected": "The learner receives feedback, can complete the lesson, and the Progress view reflects the lesson activity."
+    "expected": "The learner sees no correctness feedback or score before submitting Question 5. The final result is shown as correct answers out of five, and progress reflects the completed attempt."
   },
   {
     "name": "Use revision mode on mobile",
@@ -36,10 +37,10 @@
       "Choose Grade 2 English",
       "Open the first practice lesson"
     ],
-    "expected": "The revision page and lesson open without horizontal layout problems, and the learner can select an answer."
+    "expected": "The lesson, five-question set, score screen, and answer review remain usable without horizontal layout problems."
   },
   {
-    "name": "View learner progress",
+    "name": "View profile-specific learner progress",
     "viewport": "desktop",
     "covers": [
       "progress dashboard",
@@ -50,11 +51,10 @@
     "description": "Verifies the progress dashboard loads and displays learner progress from the application state.",
     "steps": [
       "Open Progress",
-      "Enter a learner name",
       "Refresh the page",
       "Return to Progress"
     ],
-    "expected": "The learner name remains available and the progress dashboard displays grade and subject progress."
+    "expected": "The active learner's profile and progress remain available, and the dashboard displays grade and subject progress."
   },
   {
     "name": "Open adult learning overview",
@@ -65,18 +65,18 @@
     ],
     "description": "Verifies the adult view shows learning progress by grade and a revision recommendation based on actual activity.",
     "steps": ["Open Adult View", "Review the Grade 1 to Grade 3 rows"],
-    "expected": "The overview displays Mathematics and English progress for each grade and shows an appropriate next-step message."
+    "expected": "The selected learner's Mathematics and English progress is displayed with an appropriate next-step message."
   },
   {
-    "name": "Prevent submitting an unanswered question",
+    "name": "Prevent moving on without an answer",
     "viewport": "mobile",
-    "covers": ["required answer guardrail", "invalid-write prevention"],
-    "description": "Verifies the learner cannot submit a question before selecting an answer.",
+    "covers": ["required answer guardrail", "invalid-write prevention", "delayed scoring"],
+    "description": "Verifies each question needs an answer and no result is shown before the fifth submission.",
     "steps": [
       "Open Grade 1 Mathematics",
-      "Open Counting Objects",
+      "Open the first lesson",
       "Leave the options unselected"
     ],
-    "expected": "The Check answer button remains disabled until an option is selected."
+    "expected": "The Next question or Submit answers button remains disabled until an option is selected, and the score remains hidden until all five questions are submitted."
   }
 ]

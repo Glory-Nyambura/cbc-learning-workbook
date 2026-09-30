@@ -640,6 +640,7 @@ main { margin-left: 218px; transition: margin-left .2s ease; }
   color: inherit;
 }
 .strand:hover { border-bottom-color: #c6d9cc; background: #f5f9f5; }
+.strand.active { background: #edf5ef; color: #285e48; }
 .strand-num {
   font-family: 'Nunito';
   color: #b0bcb6;
@@ -738,6 +739,23 @@ main { margin-left: 218px; transition: margin-left .2s ease; }
   font-size: 10px;
   font-weight: 700;
 }
+.lesson-teaching { display: grid; gap: 10px; margin: -12px 0 22px; }
+.lesson-key-idea, .lesson-example { border-left: 3px solid #4e796b; padding: 14px 17px; background: #edf4ef; }
+.lesson-example { border-left-color: #d28b2f; background: #fff7e9; }
+.lesson-key-idea p, .lesson-example p { margin: 5px 0 0; color: #334b44; font-size: 14px; line-height: 1.6; }
+.lesson-activity { margin: 0; padding: 2px 0 2px 20px; color: #71817b; font-size: 12px; line-height: 1.5; }
+.example-visual { margin: 14px 0 0; padding: 12px; display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px; background: rgba(255,255,255,.72); border: 1px solid #eadfc9; border-radius: 10px; }
+.example-visual-group { flex: 1 1 130px; min-width: 0; padding: 10px; background: #fff; border: 1px solid #edf0ed; border-radius: 8px; }
+.example-visual-group > strong { color: #53675e; font-size: 11px; }
+.example-visual-items { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.example-visual-item { min-width: 43px; display: grid; justify-items: center; gap: 3px; color: #3d5349; }
+.example-visual-item > span { min-height: 38px; display: grid; place-items: center; font-size: 26px; line-height: 1; }
+.example-visual-item[data-length] > span { position: relative; min-height: 26px; }
+.example-visual-item[data-length] > span::after { position: absolute; left: 50%; top: 25px; height: 4px; content: ''; background: #d75b46; transform: translateX(-50%); }
+.example-visual-item[data-length='short'] > span::after { width: 48px; }
+.example-visual-item[data-length='long'] > span::after { width: 112px; }
+.example-visual-item small { max-width: 82px; color: #71817b; font-size: 9px; text-align: center; line-height: 1.25; }
+.example-visual figcaption { flex-basis: 100%; color: #829089; font-size: 10px; }
 .learn-panel {
   background: #fff;
   border: 1px solid #e0e7e2;
@@ -865,6 +883,12 @@ main { margin-left: 218px; transition: margin-left .2s ease; }
 .completion-actions {
   justify-content: center;
 }
+.answer-review { max-width: 680px; margin: 25px auto 0; text-align: left; }
+.answer-review h3 { color: #203c34; font-family: 'Nunito'; font-size: 20px; }
+.answer-review-item { border-top: 1px solid #e4ebe6; padding: 14px 0; color: #52645d; font-size: 13px; line-height: 1.55; }
+.answer-review-item > strong { color: #315c4d; }
+.answer-review-item p { margin: 7px 0 0; }
+.answer-review-item b { color: #334b44; }
 .simple-head {
   margin-bottom: 32px;
 }

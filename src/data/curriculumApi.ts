@@ -1,6 +1,7 @@
-import { curriculum, type Grade, type Subject } from './curriculum';
+import { type Grade, type Subject } from './curriculum';
+import { curriculum } from './syllabusCurriculum';
 import { getLessonForGradeSubject, getLessonsForGradeSubject } from './lessons';
-import { buildQuestionBankForSubject } from './questionBank';
+import { buildQuestionBankForSubject, getAssessmentQuestions, getPracticeQuestionsForAttempt } from './questionBank';
 
 export const curriculumApi = {
   getCurriculumForGradeSubject(grade: Grade, subject: Subject) {
@@ -25,6 +26,14 @@ export const curriculumApi = {
 
   getAllQuestionsForSubject(grade: Grade, subject: Subject) {
     return buildQuestionBankForSubject(grade, subject);
+  },
+
+  getAssessmentQuestions(grade: Grade, subject: Subject, limit = 10) {
+    return getAssessmentQuestions(grade, subject, limit);
+  },
+
+  getPracticeQuestionsForAttempt(questions: ReturnType<typeof buildQuestionBankForSubject>, previousQuestionIds: string[] = []) {
+    return getPracticeQuestionsForAttempt(questions, previousQuestionIds);
   },
 };
 
