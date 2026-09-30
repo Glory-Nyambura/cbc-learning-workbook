@@ -85,6 +85,16 @@ describe('workbook improvements', () => {
           expect(lesson.guidedActivity, `${grade} ${subject}: ${lesson.title}`).toBeTruthy();
           const bank = curriculumApi.getQuestionsForLesson(grade, subject, lesson.id);
           expect(bank, `${grade} ${subject}: ${lesson.title}`).toHaveLength(subject === 'English' ? 5 : 10);
+          expect(new Set(bank.map(question => question.options.indexOf(question.answer))).size, `${grade} ${subject}: ${lesson.title}`).toBeGreaterThan(1);
+          if (subject === 'Mathematics') {
+            expect(new Set(bank.map(question => question.text)).size, `${grade} ${subject}: ${lesson.title}`).toBe(10);
+            expect(new Set(bank.map(question => question.context)).size, `${grade} ${subject}: ${lesson.title}`).toBe(1);
+            expect(bank.every(question => ![
+              'What should you do?',
+              'Which idea helps?',
+              'Which strategy works?',
+            ].includes(question.text) && !question.text.startsWith('True or false: We can practise ')), `${grade} ${subject}: ${lesson.title}`).toBe(true);
+          }
           const attempt = curriculumApi.getPracticeQuestionsForAttempt(bank);
           expect(attempt).toHaveLength(Math.min(5, bank.length));
           expect(attempt.map(question => question.difficulty)).toEqual([
@@ -96,6 +106,20 @@ describe('workbook improvements', () => {
         }
       }
     }
+  });
+
+  it('asks calculation questions that match each mathematics lesson', () => {
+    const addition = curriculumApi.getLessons(1, 'Mathematics').find(lesson => lesson.title === 'Adding Numbers');
+    const multiplication = curriculumApi.getLessons(3, 'Mathematics').find(lesson => lesson.title === 'Multiplication Facts');
+    expect(addition).toBeDefined();
+    expect(multiplication).toBeDefined();
+
+    const additionQuestions = curriculumApi.getQuestionsForLesson(1, 'Mathematics', addition!.id);
+    const multiplicationQuestions = curriculumApi.getQuestionsForLesson(3, 'Mathematics', multiplication!.id);
+    expect(additionQuestions.map(question => question.text)).toContain('What is 3 + 4?');
+    expect(multiplicationQuestions.map(question => question.text)).toContain('What is 4 × 6?');
+    expect(additionQuestions.every(question => question.context === 'Addition')).toBe(true);
+    expect(multiplicationQuestions.every(question => question.context === 'Multiplication')).toBe(true);
   });
 
   it('shows curriculum-authored lesson explanations and examples', () => {
@@ -114,6 +138,49 @@ describe('workbook improvements', () => {
     expect(screen.getByText('red ball')).toBeTruthy();
     expect(screen.getByText('red cup')).toBeTruthy();
     expect(screen.queryByText(/Problem SolvingKey inquiry/i)).toBeNull();
+  });
+
+  it('keeps read-aloud optional and speaks a selected sentence with the chosen voice and tone', () => {
+    const speak = vi.fn();
+    const voice = { voiceURI: 'friendly-en-gb', name: 'Friendly English', lang: 'en-GB' } as SpeechSynthesisVoice;
+    class MockUtterance {
+      voice: SpeechSynthesisVoice | null = null;
+      lang = '';
+      rate = 1;
+      pitch = 1;
+      volume = 1;
+      constructor(readonly text: string) {}
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', MockUtterance);
+    vi.stubGlobal('speechSynthesis', {
+      getVoices: () => [voice],
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      cancel: vi.fn(),
+      speak,
+    });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /continue learning/i }));
+    fireEvent.click(document.querySelector('.lesson-card')!);
+    const toggle = screen.getByRole('checkbox');
+
+    expect(toggle.checked).toBe(false);
+    expect(screen.queryByRole('button', { name: /read sentence aloud/i })).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: /read sentence aloud: today we will learn to put things with the same colour together/i })).toBeTruthy();
+    fireEvent.click(screen.getByTitle('Settings'));
+    fireEvent.change(screen.getByLabelText('Voice'), { target: { value: voice.voiceURI } });
+    fireEvent.click(screen.getByRole('button', { name: 'Bright' }));
+    fireEvent.click(screen.getByRole('button', { name: /play voice sample/i }));
+
+    const utterance = speak.mock.calls[0][0] as MockUtterance;
+    expect(utterance.text).toBe('Hello! Let us read and learn together.');
+    expect(utterance.voice).toBe(voice);
+    expect(utterance.pitch).toBe(1.12);
+    expect(utterance.rate).toBe(0.94);
+    expect(utterance.volume).toBe(1);
   });
 
   it('uses concept-matched visuals for length, solid shapes, and English grammar', () => {
@@ -139,12 +206,18 @@ describe('workbook improvements', () => {
 
     expect(screen.getByText('Question 1 of 5')).toBeTruthy();
     for (let questionIndex = 0; questionIndex < 4; questionIndex += 1) {
-      fireEvent.click(document.querySelector('.options button')!);
+      const questionText = screen.getByRole('heading', { level: 2 }).textContent;
+      const question = curriculumApi.getAllQuestionsForSubject(1, 'Mathematics').find(item => item.text === questionText);
+      const correctOption = [...document.querySelectorAll('.options button')].find(option => option.textContent === question?.answer);
+      fireEvent.click(correctOption!);
       fireEvent.click(screen.getByRole('button', { name: /next question/i }));
       expect(screen.queryByRole('heading', { name: 'Your Score' })).toBeNull();
       expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
     }
-    fireEvent.click(document.querySelector('.options button')!);
+    const finalQuestionText = screen.getByRole('heading', { level: 2 }).textContent;
+    const finalQuestion = curriculumApi.getAllQuestionsForSubject(1, 'Mathematics').find(item => item.text === finalQuestionText);
+    const finalCorrectOption = [...document.querySelectorAll('.options button')].find(option => option.textContent === finalQuestion?.answer);
+    fireEvent.click(finalCorrectOption!);
     fireEvent.click(screen.getByRole('button', { name: /submit answers/i }));
     expect(screen.getByRole('heading', { name: 'Your Score' })).toBeTruthy();
     expect(screen.getByText('5/5')).toBeTruthy();
@@ -164,9 +237,12 @@ describe('workbook improvements', () => {
     const firstAttempt: string[] = [];
 
     for (let questionIndex = 0; questionIndex < 5; questionIndex += 1) {
-      firstAttempt.push(screen.getByRole('heading', { level: 2 }).textContent || '');
+      const questionText = screen.getByRole('heading', { level: 2 }).textContent || '';
+      firstAttempt.push(questionText);
+      const question = curriculumApi.getQuestionsForLesson(1, 'Mathematics', 'g1m-sorting-by-colour').find(item => item.text === questionText);
       const options = document.querySelectorAll('.options button');
-      fireEvent.click(options[options.length - 1]);
+      const wrongOption = [...options].find(option => option.textContent !== question?.answer);
+      fireEvent.click(wrongOption!);
       fireEvent.click(screen.getByRole('button', {
         name: questionIndex < 4 ? /next question/i : /submit answers/i,
       }));

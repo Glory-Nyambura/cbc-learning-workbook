@@ -26,6 +26,9 @@ import {
   Trophy,
   TreePine,
   Users,
+  Volume2,
+  VolumeX,
+  Play,
   X,
 } from 'lucide-react';
 
@@ -41,6 +44,34 @@ type View =
 
 type Theme = 'meadow' | 'ocean' | 'sunset' | 'berry' | 'sky';
 type GrowthProject = 'tree' | 'house' | 'painting';
+type VoiceTone = 'calm' | 'clear' | 'bright';
+type VoiceSettings = { enabled: boolean; voiceURI: string; tone: VoiceTone; volume: number };
+
+const voiceSettingsKey = 'cbc-voice-settings';
+const defaultVoiceSettings: VoiceSettings = { enabled: false, voiceURI: '', tone: 'clear', volume: 1 };
+const voiceToneProfiles: Record<VoiceTone, { rate: number; pitch: number }> = {
+  calm: { rate: 0.82, pitch: 1.08 },
+  clear: { rate: 0.9, pitch: 1 },
+  bright: { rate: 0.94, pitch: 1.12 },
+};
+
+const loadVoiceSettings = (): VoiceSettings => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(voiceSettingsKey) || '{}');
+    return {
+      enabled: saved.enabled === true,
+      voiceURI: typeof saved.voiceURI === 'string' ? saved.voiceURI : '',
+      tone: ['calm', 'clear', 'bright'].includes(saved.tone) ? saved.tone : 'clear',
+      volume: typeof saved.volume === 'number' ? Math.min(1, Math.max(0.2, saved.volume)) : 1,
+    };
+  } catch {
+    return defaultVoiceSettings;
+  }
+};
+
+const supportsSpeech = () => typeof window !== 'undefined'
+  && 'speechSynthesis' in window
+  && typeof SpeechSynthesisUtterance !== 'undefined';
 
 type Profile = {
   id: string;
@@ -129,6 +160,9 @@ function App() {
   const [progress, setProgress] = useState<Record<string, number>>({});
   const [saved, setSaved] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'local' | 'syncing' | 'synced'>('local');
+  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(loadVoiceSettings);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const speechAvailable = supportsSpeech();
   const activeProfile = profiles.find(profile => profile.id === activeProfileId);
   const today = new Date().toISOString().slice(0, 10);
   const currentTheme = activeProfile?.theme || 'meadow';
@@ -136,6 +170,66 @@ function App() {
 
   const [curriculumData, setCurriculumData] = useState(() => curriculumApi.getCurriculumForGradeSubject(grade, subject));
   const [allLessons, setAllLessons] = useState<LessonDetail[]>(() => curriculumApi.getLessons(grade, subject));
+
+  useEffect(() => {
+    if (!speechAvailable) return;
+    const speech = window.speechSynthesis;
+    const updateVoices = () => setAvailableVoices(speech.getVoices().filter(voice => voice.lang.toLowerCase().startsWith('en')));
+    updateVoices();
+    speech.addEventListener('voiceschanged', updateVoices);
+    return () => speech.removeEventListener('voiceschanged', updateVoices);
+  }, [speechAvailable]);
+
+  useEffect(() => {
+    localStorage.setItem(voiceSettingsKey, JSON.stringify(voiceSettings));
+  }, [voiceSettings]);
+
+  useEffect(() => {
+    if (!voiceSettings.enabled && speechAvailable) window.speechSynthesis.cancel();
+  }, [voiceSettings.enabled, speechAvailable]);
+
+  useEffect(() => () => {
+    if (speechAvailable) window.speechSynthesis.cancel();
+  }, [speechAvailable]);
+
+  const speakText = (text: string) => {
+    if (!voiceSettings.enabled || !speechAvailable) return;
+    const speech = window.speechSynthesis;
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = availableVoices.find(item => item.voiceURI === voiceSettings.voiceURI);
+    if (voice) utterance.voice = voice;
+    utterance.lang = voice?.lang || 'en-GB';
+    utterance.rate = voiceToneProfiles[voiceSettings.tone].rate;
+    utterance.pitch = voiceToneProfiles[voiceSettings.tone].pitch;
+    utterance.volume = voiceSettings.volume;
+    speech.cancel();
+    speech.speak(utterance);
+  };
+
+  const readAloudButton = (text: string) => voiceSettings.enabled && speechAvailable && (
+    <button
+      className="speak-btn"
+      type="button"
+      aria-label={`Read sentence aloud: ${text}`}
+      title="Read this sentence aloud"
+      onClick={() => speakText(text)}
+    >
+      <Volume2 size={16} />
+    </button>
+  );
+
+  const voiceToggle = (
+    <label className="voice-toggle">
+      <input
+        type="checkbox"
+        aria-label="Read aloud"
+        checked={voiceSettings.enabled}
+        disabled={!speechAvailable}
+        onChange={event => setVoiceSettings(current => ({ ...current, enabled: event.target.checked }))}
+      />
+      <span>{voiceSettings.enabled ? 'On' : 'Off'}</span>
+    </label>
+  );
 
   useEffect(() => {
     let ignore = false;
@@ -748,7 +842,7 @@ function App() {
               <div>
                 <span className="eyebrow">{gradeInfo[grade].label.toUpperCase()} · {subject.toUpperCase()}</span>
                 <h1>{lesson.title}</h1>
-                <p>{lesson.introduction}</p>
+                  <div className="speakable-sentence"><p>{lesson.introduction}</p>{readAloudButton(lesson.introduction)}</div>
               </div>
               <div className="lesson-badge">
                 <BookOpen size={28} />
@@ -757,19 +851,31 @@ function App() {
                 </span>
               </div>
             </section>
+            <div className="voice-toolbar">
+              <div className="voice-toolbar-copy">
+                {voiceSettings.enabled ? <Volume2 size={19} /> : <VolumeX size={19} />}
+                <span><strong>Read aloud</strong><small>{speechAvailable ? 'Choose when to hear a sentence.' : 'Speech is not available in this browser.'}</small></span>
+              </div>
+              {voiceToggle}
+              {voiceSettings.enabled && speechAvailable && (
+                <button className="secondary voice-sample" onClick={() => speakText(`${lesson.title}. ${lesson.introduction}`)}>
+                  <Play size={15} /> Hear sample
+                </button>
+              )}
+            </div>
             <section className="lesson-teaching" aria-label="Lesson explanation and example">
               <div className="lesson-key-idea">
                 <span className="eyebrow">WHAT WE ARE LEARNING</span>
-                <p>{lesson.learningObjective}</p>
+                <div className="speakable-sentence"><p>{lesson.learningObjective}</p>{readAloudButton(lesson.learningObjective)}</div>
               </div>
               <div className="lesson-key-idea">
                 <span className="eyebrow">LET’S UNDERSTAND</span>
-                <p>{lesson.explanation}</p>
+                <div className="speakable-sentence"><p>{lesson.explanation}</p>{readAloudButton(lesson.explanation)}</div>
               </div>
               {lesson.examples.map((example, index) => (
                 <div className="lesson-example" key={`${lesson.id}-example-${index}`}>
                   <span className="eyebrow">EXAMPLE {index + 1}</span>
-                  <p>{example}</p>
+                  <div className="speakable-sentence"><p>{example}</p>{readAloudButton(example)}</div>
                   {lesson.exampleVisuals?.[index] && (
                     <figure className="example-visual" aria-label={lesson.exampleVisuals[index].caption}>
                       {lesson.exampleVisuals[index].groups.map((group, groupIndex) => (
@@ -792,7 +898,7 @@ function App() {
               ))}
               <div className="lesson-activity">
                 <span className="eyebrow">TRY IT TOGETHER</span>
-                <p>{lesson.guidedActivity}</p>
+                <div className="speakable-sentence"><p>{lesson.guidedActivity}</p>{readAloudButton(lesson.guidedActivity)}</div>
               </div>
             </section>
             <div className="learn-panel">
@@ -808,6 +914,7 @@ function App() {
                   <div className="question-box">
                     <CircleHelp size={20} />
                     <h2>{currentQuestion?.text}</h2>
+                    {currentQuestion && readAloudButton(currentQuestion.text)}
                   </div>
                   <div className="options">
                     {currentQuestion?.options.map(option => (
@@ -1095,6 +1202,73 @@ function App() {
             <section className="simple-head"><span className="eyebrow">LEARNER SETTINGS</span><h1>Settings</h1><p>Manage learner profiles, appearance, progress and adult access.</p></section>
             <div className="settings-layout">
               <section className="settings-content">
+                <div className="settings-block voice-settings">
+                  <div className="settings-block-heading">
+                    <div><span className="eyebrow">ACCESSIBILITY</span><h2>Read aloud</h2></div>
+                    {voiceSettings.enabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                  </div>
+                  <div className="voice-settings-row">
+                    <p>Let the learner choose when lesson sentences are spoken.</p>
+                    {voiceToggle}
+                  </div>
+                  {speechAvailable ? (
+                    <div className="voice-settings-options">
+                      <label className="voice-field">
+                        <span>Voice</span>
+                        <select
+                          value={voiceSettings.voiceURI}
+                          disabled={!voiceSettings.enabled || availableVoices.length === 0}
+                          onChange={event => setVoiceSettings(current => ({ ...current, voiceURI: event.target.value }))}
+                        >
+                          <option value="">Device default</option>
+                          {availableVoices.map(voice => (
+                            <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name} ({voice.lang})</option>
+                          ))}
+                        </select>
+                        {availableVoices.length === 0 && <small>Using the device's default English voice.</small>}
+                      </label>
+                      <div className="voice-field">
+                        <span>Reading tone</span>
+                        <div className="voice-tone-options" role="group" aria-label="Reading tone">
+                          {([
+                            ['calm', 'Calm'],
+                            ['clear', 'Clear'],
+                            ['bright', 'Bright'],
+                          ] as const).map(([tone, label]) => (
+                            <button
+                              key={tone}
+                              type="button"
+                              className={voiceSettings.tone === tone ? 'active' : ''}
+                              disabled={!voiceSettings.enabled}
+                              aria-pressed={voiceSettings.tone === tone}
+                              onClick={() => setVoiceSettings(current => ({ ...current, tone }))}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <label className="voice-field">
+                        <span>Voice volume <strong>{Math.round(voiceSettings.volume * 100)}%</strong></span>
+                        <input
+                          aria-label="Voice volume"
+                          type="range"
+                          min="0.2"
+                          max="1"
+                          step="0.1"
+                          value={voiceSettings.volume}
+                          disabled={!voiceSettings.enabled}
+                          onChange={event => setVoiceSettings(current => ({ ...current, volume: Number(event.target.value) }))}
+                        />
+                      </label>
+                      <button className="secondary voice-sample" disabled={!voiceSettings.enabled} onClick={() => speakText('Hello! Let us read and learn together.') }>
+                        <Play size={15} /> Play voice sample
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="voice-unavailable">Read aloud is not supported by this browser or device.</p>
+                  )}
+                </div>
                 <div className="settings-block"><div className="settings-block-heading"><div><span className="eyebrow">LEARNERS</span><h2>Profile details</h2></div><span>{profiles.length}/3 profiles</span></div>
                   {profiles.map(profile => <div className="editable-profile" key={profile.id}><span className="avatar">{profile.avatar}</span><div><strong>{profile.name}</strong><small>{profile.school} • Age {profile.age} • Grade {profile.grade}</small></div><button className="secondary" onClick={() => beginEditProfile(profile)}>Edit profile</button></div>)}
                 </div>

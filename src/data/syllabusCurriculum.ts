@@ -2,6 +2,7 @@ import syllabusTopics from '../../scripts/curriculum_topics.json';
 import type { Grade, Lesson, Subject, SubjectData } from './curriculum';
 import { getLearnerCopy } from './learnerLanguage';
 import { getLessonExampleVisuals } from './lessonVisuals';
+import { getMathPracticeQuestions } from './mathPracticeQuestions';
 
 const subjects: Subject[] = ['Mathematics', 'English'];
 const grades: Grade[] = [1, 2, 3];
@@ -55,7 +56,9 @@ const createLesson = (
   keyIdea: idea,
   examples,
   exampleVisuals: getLessonExampleVisuals(grade, subject, topic.title, examples.length),
-  questions: copy?.practiceQuestions ?? [
+  questions: subject === 'Mathematics'
+    ? getMathPracticeQuestions(grade, topic.title)
+    : copy?.practiceQuestions ?? [
     {
       id: 'q1',
       text: copy?.question ?? (grade === 1

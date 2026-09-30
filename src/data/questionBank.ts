@@ -11,18 +11,31 @@ export type GeneratedQuestion = Question & {
 };
 
 export function buildQuestionBankForSubject(grade: Grade, subject: Subject): GeneratedQuestion[] {
-  return curriculum[grade][subject].lessons.flatMap(lesson =>
-    lesson.questions.map((question, index) => ({
-      ...question,
-      lessonId: lesson.id,
-      grade,
-      subject,
-      type: question.type ?? 'multiple-choice',
-      difficulty: question.difficulty ?? (index === 0 ? 'easy' : 'medium'),
-      context: question.context ?? lesson.subStrand,
-      id: `${lesson.id}-${question.id}`,
-    }))
-  );
+  return curriculum[grade][subject].lessons.flatMap((lesson, lessonIndex) => {
+    const lessonOffset = Array.from(lesson.id).reduce((total, character) => total + character.charCodeAt(0), 0);
+    return lesson.questions.map((question, index) => {
+      const answerIndex = question.options.indexOf(question.answer);
+      let options = [...question.options];
+      if (answerIndex >= 0 && options.length > 1) {
+        const distractors = options.filter((_, optionIndex) => optionIndex !== answerIndex);
+        const answerPosition = (lessonOffset + lessonIndex + index) % options.length;
+        options = [...distractors];
+        options.splice(answerPosition, 0, question.answer);
+      }
+
+      return {
+        ...question,
+        options,
+        lessonId: lesson.id,
+        grade,
+        subject,
+        type: question.type ?? 'multiple-choice',
+        difficulty: question.difficulty ?? (index === 0 ? 'easy' : 'medium'),
+        context: question.context ?? lesson.subStrand,
+        id: `${lesson.id}-${question.id}`,
+      };
+    });
+  });
 }
 
 export function getQuestionsForLesson(grade: Grade, subject: Subject, lessonId: string): GeneratedQuestion[] {
