@@ -1281,7 +1281,7 @@ function App() {
       </main>
 
       <footer>
-        <span>© 2026 CBE Workbook</span>
+        <span>© 2026 </span>
         <span>Grade 1–3 • Mathematics & English</span>
         <span>Learn with confidence.</span>
       </footer>
