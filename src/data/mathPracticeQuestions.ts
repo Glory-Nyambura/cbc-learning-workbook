@@ -144,18 +144,31 @@ const classificationQuestions = (title: string): QuestionSeed[] => {
           ['Which pair has four corners?', 'Square and rectangle', 'Circle and triangle', 'Circle and oval'],
         ]
       : title.includes('Size') || title.includes('Biggest') || title.includes('Ordering')
-        ? [
-            ['Which is the biggest: a small, medium, or large bottle?', 'Large bottle', 'Small bottle', 'Medium bottle'],
-            ['When ordering from smallest to biggest, which comes first?', 'The smallest object', 'The biggest object', 'The middle object'],
-            ['When ordering from biggest to smallest, which comes first?', 'The biggest object', 'The smallest object', 'The shortest object'],
-            ['Which stick is longest: 2 blocks, 5 blocks, or 3 blocks?', '5 blocks', '2 blocks', '3 blocks'],
-            ['Which leaf is smallest: 4 cm, 7 cm, or 2 cm?', '2 cm', '7 cm', '4 cm'],
-            ['What comes after the shortest stick when ordering small to big?', 'The next longer stick', 'The longest stick first', 'A shorter stick'],
-            ['Which object is smallest: a 6 cm crayon or a 9 cm crayon?', '6 cm crayon', '9 cm crayon', 'They are the same'],
-            ['Which order goes from big to small?', '10 cm, 7 cm, 3 cm', '3 cm, 7 cm, 10 cm', '7 cm, 10 cm, 3 cm'],
-            ['Which is the biggest number of handspans?', '8 handspans', '5 handspans', '3 handspans'],
-            ['What should you compare to find the smallest object?', 'Their sizes', 'Their colours', 'Their names'],
-          ]
+        ? (() => {
+            const normalizedTitle = title.toLowerCase();
+            const object = normalizedTitle.includes('ordering small to big') || normalizedTitle.includes('smallest to biggest')
+              ? 'stick'
+              : normalizedTitle.includes('ordering big to small') || normalizedTitle.includes('biggest to smallest')
+                ? 'leaf'
+                : normalizedTitle.includes('biggest and smallest')
+                  ? 'bottle'
+                  : 'leaf';
+            const small = `Small ${object}`;
+            const medium = `Medium ${object}`;
+            const large = `Large ${object}`;
+            return [
+              [`Which ${object} is biggest?`, large, small, medium],
+              [`Which ${object} is smallest?`, small, medium, large],
+              [`From small to large, which ${object} comes first?`, small, large, medium],
+              [`From large to small, which ${object} comes first?`, large, small, medium],
+              [`Which ${object} is in the middle?`, medium, small, large],
+              [`Which order goes from small to large?`, `${small}, ${medium}, ${large}`, `${large}, ${medium}, ${small}`, `${medium}, ${small}, ${large}`],
+              [`Which order goes from large to small?`, `${large}, ${medium}, ${small}`, `${small}, ${medium}, ${large}`, `${medium}, ${large}, ${small}`],
+              [`A small and a large ${object} are shown. Which is larger?`, large, small, medium],
+              [`A medium ${object} is between which two sizes?`, `${small} and ${large}`, `${small} and ${medium}`, `${medium} and ${large}`],
+              [`What should you compare to find the smallest ${object}?`, 'Their sizes', 'Their colours', 'Their names'],
+            ];
+          })()
         : title.includes('Comparing')
           ? [
               ['There are 5 red tops and 3 blue tops. Which group has more?', 'Red tops', 'Blue tops', 'The same number'],

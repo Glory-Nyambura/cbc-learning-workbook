@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from '../src/App';
 import { curriculumApi } from '../src/data/curriculumApi';
 import { getLearnerCopy } from '../src/data/learnerLanguage';
@@ -78,7 +78,7 @@ describe('workbook improvements', () => {
           expect(lesson.examples.length, `${grade} ${subject}: ${lesson.title}`).toBeLessThanOrEqual(2);
           expect(lesson.exampleVisuals, `${grade} ${subject}: ${lesson.title}`).toHaveLength(lesson.examples.length);
           expect(lesson.exampleVisuals?.every(example =>
-            example.groups.length > 0 && example.groups.every(visualGroup => visualGroup.items.length > 0)
+            Boolean(example.alt) && Boolean(example.groups?.length) && example.groups?.every(visualGroup => visualGroup.items.length > 0)
           ), `${grade} ${subject}: ${lesson.title}`).toBe(true);
           expect(lesson.introduction, `${grade} ${subject}: ${lesson.title}`).toBeTruthy();
           expect(lesson.learningObjective, `${grade} ${subject}: ${lesson.title}`).toBeTruthy();
@@ -133,10 +133,11 @@ describe('workbook improvements', () => {
     expect(screen.getByText('EXAMPLE 1')).toBeTruthy();
     expect(screen.getByText('TRY IT TOGETHER')).toBeTruthy();
     expect(screen.getByText('Put 3 red bottle tops in one group. Put 2 blue tops in another group.')).toBeTruthy();
-    expect(screen.getAllByText('Red group')).toHaveLength(2);
-    expect(screen.getAllByText('Blue group')).toHaveLength(1);
-    expect(screen.getByText('red ball')).toBeTruthy();
-    expect(screen.getByText('red cup')).toBeTruthy();
+    const lessonTeaching = within(document.querySelector('.lesson-teaching')!);
+    expect(lessonTeaching.getAllByText('Red group')).toHaveLength(2);
+    expect(lessonTeaching.getAllByText('Blue group')).toHaveLength(1);
+    expect(lessonTeaching.getByText('red ball')).toBeTruthy();
+    expect(lessonTeaching.getByText('red cup')).toBeTruthy();
     expect(screen.queryByText(/Problem SolvingKey inquiry/i)).toBeNull();
   });
 
@@ -201,6 +202,47 @@ describe('workbook improvements', () => {
     expect(presentTenseLesson?.exampleVisuals?.[0].groups[0].label).toBe('Happening now');
   });
 
+  it('renders shape and action answers as visual options', () => {
+    const shapeQuestion = curriculumApi.getQuestionsForLesson(1, 'Mathematics', 'g1m-sorting-by-shape')
+      .find(question => question.visualOptions?.length);
+    const actionLesson = curriculumApi.getLessons(1, 'English').find(lesson => lesson.title === 'Action Words');
+    const actionQuestion = actionLesson && curriculumApi.getQuestionsForLesson(1, 'English', actionLesson.id)
+      .find(question => question.visualOptions?.length);
+
+    expect(shapeQuestion?.visualOptions).toHaveLength(3);
+    expect(shapeQuestion?.visualOptions?.some(option => option.visual.groups?.[0].items[0].shape === 'triangle')).toBe(true);
+    expect(shapeQuestion?.visualOptions?.find(option => option.option === 'A circle and a square')?.visual.groups?.[0].items).toHaveLength(2);
+    expect(shapeQuestion?.visualOptions?.find(option => option.option === 'Two circles')?.visual.groups?.[0].items[0].count).toBe(2);
+    expect(actionQuestion?.visualOptions?.length).toBeGreaterThanOrEqual(2);
+
+    const additionLesson = curriculumApi.getLessons(1, 'Mathematics').find(lesson => lesson.title === 'Adding Numbers');
+    const additionQuestion = additionLesson && curriculumApi.getQuestionsForLesson(1, 'Mathematics', additionLesson.id)[0];
+    expect(additionQuestion?.visualOptions).toHaveLength(3);
+    expect(additionQuestion?.visualOptions?.every(option => /^\d+$/.test(option.visual.groups?.[0].items[0].symbol ?? ''))).toBe(true);
+  });
+
+  it('keeps size questions, diagrams, and answer choices on the same object', () => {
+    const sizeCases = [
+      { lessonTitle: 'Sort by Size', object: 'leaf' },
+      { lessonTitle: 'Biggest and Smallest', object: 'bottle' },
+      { lessonTitle: 'Smallest to Biggest', object: 'stick' },
+      { lessonTitle: 'Biggest to Smallest', object: 'leaf' },
+    ];
+
+    for (const { lessonTitle, object } of sizeCases) {
+      const lesson = curriculumApi.getLessons(1, 'Mathematics').find(item => item.title === lessonTitle);
+      expect(lesson, lessonTitle).toBeDefined();
+      const questions = curriculumApi.getQuestionsForLesson(1, 'Mathematics', lesson!.id);
+      for (const question of questions.slice(0, 5)) {
+        expect(question.text.toLowerCase()).toContain(object);
+        expect(question.visual?.alt.toLowerCase()).toContain(object);
+        expect(question.visual?.groups?.[0].items.map(item => item.size)).toEqual(['small', 'medium', 'large']);
+        expect(question.options.every(option => option.toLowerCase().includes(object))).toBe(true);
+        expect(question.visualOptions?.every(option => option.visual.alt.toLowerCase().includes(object))).toBe(true);
+      }
+    }
+  });
+
   it('opens a 10-question assessment and syncs under the active profile', async () => {
     render(<App />);
     fireEvent.click(screen.getByTitle('Assessments'));
@@ -210,7 +252,7 @@ describe('workbook improvements', () => {
     for (let questionIndex = 0; questionIndex < 4; questionIndex += 1) {
       const questionText = screen.getByRole('heading', { level: 2 }).textContent;
       const question = curriculumApi.getAllQuestionsForSubject(1, 'Mathematics').find(item => item.text === questionText);
-      const correctOption = [...document.querySelectorAll('.options button')].find(option => option.textContent === question?.answer);
+      const correctOption = [...document.querySelectorAll('.options button')].find(option => option.getAttribute('aria-label') === `Choose ${question?.answer}`);
       fireEvent.click(correctOption!);
       fireEvent.click(screen.getByRole('button', { name: /next question/i }));
       expect(screen.queryByRole('heading', { name: 'Your Score' })).toBeNull();
@@ -218,7 +260,7 @@ describe('workbook improvements', () => {
     }
     const finalQuestionText = screen.getByRole('heading', { level: 2 }).textContent;
     const finalQuestion = curriculumApi.getAllQuestionsForSubject(1, 'Mathematics').find(item => item.text === finalQuestionText);
-    const finalCorrectOption = [...document.querySelectorAll('.options button')].find(option => option.textContent === finalQuestion?.answer);
+    const finalCorrectOption = [...document.querySelectorAll('.options button')].find(option => option.getAttribute('aria-label') === `Choose ${finalQuestion?.answer}`);
     fireEvent.click(finalCorrectOption!);
     fireEvent.click(screen.getByRole('button', { name: /submit answers/i }));
     expect(screen.getByRole('heading', { name: 'Your Score' })).toBeTruthy();
@@ -243,7 +285,7 @@ describe('workbook improvements', () => {
       firstAttempt.push(questionText);
       const question = curriculumApi.getQuestionsForLesson(1, 'Mathematics', 'g1m-sorting-by-colour').find(item => item.text === questionText);
       const options = document.querySelectorAll('.options button');
-      const wrongOption = [...options].find(option => option.textContent !== question?.answer);
+      const wrongOption = [...options].find(option => option.getAttribute('aria-label') !== `Choose ${question?.answer}`);
       fireEvent.click(wrongOption!);
       fireEvent.click(screen.getByRole('button', {
         name: questionIndex < 4 ? /next question/i : /submit answers/i,

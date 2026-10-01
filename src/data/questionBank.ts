@@ -1,5 +1,6 @@
 import { type Difficulty, type Grade, type Question, type Subject } from './curriculum';
 import { curriculum } from './syllabusCurriculum';
+import { getQuestionVisuals } from './lessonVisuals';
 
 export type GeneratedQuestion = Question & {
   lessonId: string;
@@ -14,6 +15,7 @@ export function buildQuestionBankForSubject(grade: Grade, subject: Subject): Gen
   return curriculum[grade][subject].lessons.flatMap((lesson, lessonIndex) => {
     const lessonOffset = Array.from(lesson.id).reduce((total, character) => total + character.charCodeAt(0), 0);
     return lesson.questions.map((question, index) => {
+      const visuals = getQuestionVisuals(grade, subject, lesson.title, question, index);
       const answerIndex = question.options.indexOf(question.answer);
       let options = [...question.options];
       if (answerIndex >= 0 && options.length > 1) {
@@ -25,6 +27,8 @@ export function buildQuestionBankForSubject(grade: Grade, subject: Subject): Gen
 
       return {
         ...question,
+        visual: question.visual ?? visuals.visual,
+        visualOptions: question.visualOptions ?? visuals.visualOptions,
         options,
         lessonId: lesson.id,
         grade,

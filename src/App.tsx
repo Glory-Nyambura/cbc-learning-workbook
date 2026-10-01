@@ -6,6 +6,7 @@ import { gradeInfo, type Grade, type Subject } from './data/curriculum';
 import { curriculum } from './data/syllabusCurriculum';
 import type { GeneratedQuestion } from './data/questionBank';
 import type { LessonDetail } from './data/lessons';
+import { LearningVisual } from './components/LearningVisual';
 import {
   BookOpen,
   Brain,
@@ -864,6 +865,12 @@ function App() {
               )}
             </div>
             <section className="lesson-teaching" aria-label="Lesson explanation and example">
+              {lesson.exampleVisuals?.[0] && (
+                <div className="lesson-visual-intro">
+                  <span className="eyebrow">LOOK</span>
+                  <LearningVisual visual={lesson.exampleVisuals[0]} grade={grade} />
+                </div>
+              )}
               <div className="lesson-key-idea">
                 <span className="eyebrow">WHAT WE ARE LEARNING</span>
                 <div className="speakable-sentence"><p>{lesson.learningObjective}</p>{readAloudButton(`What we are learning. ${lesson.learningObjective}`)}</div>
@@ -876,23 +883,8 @@ function App() {
                 <div className="lesson-example" key={`${lesson.id}-example-${index}`}>
                   <span className="eyebrow">EXAMPLE {index + 1}</span>
                   <div className="speakable-sentence"><p>{example}</p>{readAloudButton(`Example ${index + 1}. ${example}`)}</div>
-                  {lesson.exampleVisuals?.[index] && (
-                    <figure className="example-visual" aria-label={lesson.exampleVisuals[index].caption}>
-                      {lesson.exampleVisuals[index].groups.map((group, groupIndex) => (
-                        <div className="example-visual-group" key={`${lesson.id}-${index}-group-${groupIndex}`}>
-                          <strong>{group.label}</strong>
-                          <div className="example-visual-items">
-                            {group.items.map((item, itemIndex) => (
-                              <span className="example-visual-item" data-length={item.length} key={`${lesson.id}-${index}-${groupIndex}-${itemIndex}`}>
-                                <span aria-hidden="true">{item.symbol}</span>
-                                <small>{item.label}</small>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                      <figcaption>{lesson.exampleVisuals[index].caption}</figcaption>
-                    </figure>
+                  {lesson.exampleVisuals?.[index] && index > 0 && (
+                    <LearningVisual visual={lesson.exampleVisuals[index]} grade={grade} />
                   )}
                 </div>
               ))}
@@ -916,16 +908,24 @@ function App() {
                     <h2>{currentQuestion?.text}</h2>
                     {currentQuestion && readAloudButton(currentQuestion.text)}
                   </div>
+                  {currentQuestion?.visual && (
+                    <LearningVisual visual={currentQuestion.visual} grade={grade} />
+                  )}
                   <div className="options">
-                    {currentQuestion?.options.map(option => (
-                      <button
-                        key={option}
-                        className={selected === option ? 'selected' : ''}
-                        onClick={() => setSelected(option)}
-                      >
-                        {option}
-                      </button>
-                    ))}
+                    {currentQuestion?.options.map(option => {
+                      const optionVisual = currentQuestion.visualOptions?.find(item => item.option === option)?.visual;
+                      return (
+                        <button
+                          key={option}
+                          className={selected === option ? 'selected' : ''}
+                          aria-label={`Choose ${option}`}
+                          onClick={() => setSelected(option)}
+                        >
+                          {optionVisual && <LearningVisual visual={optionVisual} grade={grade} compact />}
+                          {(!optionVisual || !/^\d+$/.test(option)) && <span>{option}</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                   <div className="lesson-controls">
                     <button

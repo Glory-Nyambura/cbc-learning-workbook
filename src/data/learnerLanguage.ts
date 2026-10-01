@@ -105,7 +105,7 @@ const learnerCopy: Record<Grade, Record<Subject, Record<string, LearnerCopy>>> =
         idea: 'Look at the objects. Find the biggest one and the smallest one.',
         example: 'Look at a small, medium, and big bottle. Point to the big bottle.',
         question: 'Which bottle is the biggest?',
-        options: ['The big bottle', 'The small bottle', 'The tiny bottle top'],
+        options: ['The big bottle', 'The small bottle', 'The medium bottle'],
         answer: 'The big bottle',
         answerExplanation: 'The big bottle is larger than the others.',
       },

@@ -3,6 +3,33 @@ export type Grade = 1 | 2 | 3;
 export type QuestionType = 'multiple-choice' | 'short-answer' | 'true-false';
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
+export type LearningVisualItem = {
+  symbol?: string;
+  label: string;
+  count?: number;
+  shape?: 'circle' | 'square' | 'triangle' | 'rectangle';
+  colour?: 'red' | 'blue' | 'green' | 'yellow' | 'orange';
+  size?: 'small' | 'medium' | 'large';
+  length?: 'short' | 'long';
+  removed?: boolean;
+};
+
+export type LearningVisual = {
+  alt: string;
+  caption?: string;
+  explanation?: string;
+  src?: `/images/curriculum/${string}`;
+  groups?: {
+    label: string;
+    items: LearningVisualItem[];
+  }[];
+};
+
+export type VisualQuestionOption = {
+  option: string;
+  visual: LearningVisual;
+};
+
 export type Question = {
   id: string;
   text: string;
@@ -13,15 +40,11 @@ export type Question = {
   type?: QuestionType;
   difficulty?: Difficulty;
   context?: string;
+  visual?: LearningVisual;
+  visualOptions?: VisualQuestionOption[];
 };
 
-export type LessonExampleVisual = {
-  caption: string;
-  groups: {
-    label: string;
-    items: { symbol: string; label: string; length?: 'short' | 'long' }[];
-  }[];
-};
+export type LessonExampleVisual = LearningVisual;
 
 export type Lesson = {
   id: string;
